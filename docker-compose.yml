@@ -1,0 +1,21 @@
+services:
+  aurora_ndi:
+    image: aurora_ndi_ros2:latest
+    container_name: aurora_ndi_tracker
+    stdin_open: true
+    tty: true
+    network_mode: host
+    privileged: true
+    
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_QPA_PLATFORM=xcb
+      - QT_X11_NO_MITSHM=1
+    
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    
+    command: bash

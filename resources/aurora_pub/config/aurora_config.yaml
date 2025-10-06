@@ -1,0 +1,38 @@
+aurora_publisher_node:
+  ros__parameters:
+    # Serial
+    serial_port: "/dev/ttyUSB0"
+    baud_rate: 230400
+    serial_timeout_sec: 2.0
+    
+    # Aurora
+    tool_handle: "0A"
+    tool_rom_files: ["/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"]
+    port_handles: ["0A"]
+    reference_port: "10"
+    track_reply_option: 80
+    measure_reply_option: "0001"
+    status_reply: true
+    
+    # ROS
+    child_frame_name: "endo_aurora"
+    topic_aurora_name: "/aurora_data"
+    frame_id: "aurora_base"
+    publish_rate_hz: 40.0
+    queue_size: 10
+    
+    # Processing
+    enable_data_filtering: true
+    filter_window_size: 4
+    position_scale_factor: 1.0
+    orientation_scale_factor: 1.0
+    error_scale_factor: 1.0
+    
+    # Timeouts
+    command_timeout_sec: 2.0
+    max_connection_retries: 3
+    retry_delay_sec: 2.0
+    
+    # Logging
+    debug_mode: false
+    log_raw_data: false
