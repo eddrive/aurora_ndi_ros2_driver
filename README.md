@@ -10,7 +10,6 @@ A Docker-containerized ROS2 package for real-time electromagnetic tracking using
 * [Quick Start](#quick-start)
 * [ROS2 Package](#ros2-package)
 * [Usage](#usage)
-* [Configuration](#configuration)
 * [Troubleshooting](#troubleshooting)
 * [Contributing](#contributing)
 * [License](#license)
