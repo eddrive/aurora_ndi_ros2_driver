@@ -15,7 +15,7 @@ aurora_publisher_node:
     status_reply: true
     
     # ROS
-    child_frame_name: "endo_aurora"
+    child_frame_name: "sensor0"
     topic_aurora_name: "/aurora_data"
     frame_id: "aurora_base"
     publish_rate_hz: 40.0

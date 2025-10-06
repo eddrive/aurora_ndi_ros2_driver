@@ -76,13 +76,13 @@ docker exec -it aurora_ndi_tracker bash
 The system operates within a ROS2 Humble environment and publishes the following coordinate frames:
 
 * **`aurora_base`**: World reference frame (Aurora base station)
-* **`endo_aurora`**: Aurora sensor tracking frame (tool being tracked)
+* **`sensor0`**: Aurora sensor tracking frame (tool being tracked)
 
 ### TF Tree Structure
 
 ```
 aurora_base
-    └── endo_aurora
+    └── sensor0
 ```
 
 Publishes Aurora electromagnetic tracking sensor data to the ROS2 ecosystem using the `ndi_aurora` driver.
@@ -137,7 +137,7 @@ Visualize the coordinate frames and transforms using RViz2:
 ros2 run rviz2 rviz2
 ```
 
-Add the TF display plugin to see the `aurora_base` → `endo_aurora` transform.
+Add the TF display plugin to see the `aurora_base` → `sensor0` transform.
 
 ### Monitoring Data
 
@@ -150,7 +150,7 @@ ros2 topic echo /aurora_data
 **Check TF transforms:**
 
 ```bash
-ros2 run tf2_ros tf2_echo aurora_base endo_aurora
+ros2 run tf2_ros tf2_echo aurora_base sensor0
 ```
 
 **Visualize TF tree:**

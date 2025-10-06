@@ -90,7 +90,7 @@ void AuroraPublisherNode::declare_parameters()
     this->declare_parameter("status_reply", true);
     
     // ROS topic parameters
-    this->declare_parameter("child_frame_name", std::string("endo_aurora"));
+    this->declare_parameter("child_frame_name", std::string("sensor0"));
     this->declare_parameter("topic_aurora_name", std::string("aurora_data"));
     this->declare_parameter("frame_id", std::string("aurora_base"));
     this->declare_parameter("publish_rate_hz", 40.0);
@@ -421,12 +421,12 @@ void AuroraPublisherNode::tf_publish_callback()
     
     if (!current_data.visible) return;
     
-    // Publish TF: aurora_base -> endo_aurora
+    // Publish TF: aurora_base -> sensor0
     geometry_msgs::msg::TransformStamped tf_msg;
     
     tf_msg.header.stamp = this->get_clock()->now();
     tf_msg.header.frame_id = params_.frame_id;           // "aurora_base"
-    tf_msg.child_frame_id = params_.child_frame_name;    // "endo_aurora"
+    tf_msg.child_frame_id = params_.child_frame_name;    // "sensor0"
     
     // Position (mm to meters)
     tf_msg.transform.translation.x = current_data.position[0] / 1000.0;
