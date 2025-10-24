@@ -1,222 +1,168 @@
-#pragma once
+#ifndef AURORA_PUBLISHER_NODE_HPP
+#define AURORA_PUBLISHER_NODE_HPP
 
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <tf2_ros/transform_broadcaster.h>
-#include <std_msgs/msg/header.hpp>
-#include "aurora_pub/ndi_aurora_ros2.hpp"
-#include "aurora_pub/msg/aurora_data.hpp"
+#include <aurora_pub/msg/aurora_data.hpp>
 
-#include <thread>
-#include <mutex>
-#include <atomic>
-#include <chrono>
+#include <memory>
 #include <string>
 #include <vector>
+#include <thread>
+#include <mutex>
+#include <chrono>
 #include <optional>
-#include <memory>
-#include <cstdint>
+#include <deque>
+
+// Forward declaration
+namespace AuroraDriver {
+    class ndi_aurora;
+    struct ToolPose;
+}
 
 namespace aurora_pub
 {
 
-/**
- * @brief Aurora NDI Publisher Node for ROS2
- * 
- * This class provides direct communication with Aurora NDI tracking system
- * via the ndi_aurora driver, publishing TF transforms instead of pose topics.
- * 
- * Features:
- * - Direct Aurora communication using ndi_aurora driver
- * - TF broadcasting: aurora_base -> endo_aurora
- * - Configurable via YAML parameters
- * - Data filtering and averaging
- * - Robust error handling and reconnection
- */
 class AuroraPublisherNode : public rclcpp::Node
 {
 public:
-    /**
-     * @brief Constructor - initializes node and Aurora communication
-     */
     AuroraPublisherNode();
-
-    /**
-     * @brief Destructor - cleanly shuts down Aurora and threads
-     */
     ~AuroraPublisherNode();
 
 private:
-    /**
-     * @brief Configuration parameters structure
-     */
-    struct Parameters {
-        // Serial communication settings
-        std::string serial_port;           ///< Aurora device serial port (/dev/ttyUSB0)
-        int baud_rate;                     ///< Communication baud rate (230400)
-        double serial_timeout_sec;         ///< Serial operation timeout
-
-        // Aurora system configuration
-        std::string tool_handle;           ///< Primary tool handle ("0A")
-        std::vector<std::string> tool_rom_files;  ///< ROM file paths
-        std::vector<std::string> port_handles;    ///< Enabled port handles
-        std::string reference_port;        ///< Reference tool port ("10")
-        int track_reply_option;            ///< Track reply option (80)
-        std::string measure_reply_option;  ///< Measure reply option ("0001")
-        bool status_reply;                 ///< Include status in replies
-
-        // TF and ROS configuration           
-        std::string child_frame_name;      ///< Child frame name ("endo_aurora")
-        std::string topic_aurora_name;     ///< Aurora data topic ("/aurora_data")
-        std::string frame_id;              ///< Parent frame ID ("aurora_base")
-        double publish_rate_hz;            ///< Publishing frequency (40.0)
-        int queue_size;                    ///< Publisher queue size
-
-        // Data processing settings
-        bool enable_data_filtering;        ///< Enable moving average filter
-        int filter_window_size;            ///< Filter window size (4)
-        double position_scale_factor;      ///< Position scaling (1.0)
-        double orientation_scale_factor;   ///< Orientation scaling (1.0)
-        double error_scale_factor;         ///< Error scaling (1.0)
-
-        // Connection and retry settings
-        double command_timeout_sec;        ///< Aurora command timeout
-        int max_connection_retries;        ///< Max serial connection retries
-        double retry_delay_sec;            ///< Delay between retries
-
-        // Logging configuration
-        bool debug_mode;                   ///< Enable debug logging
-        bool log_raw_data;                 ///< Log raw Aurora data strings
-    };
-
-    /**
-     * @brief Aurora sensor data structure
-     */
-    struct AuroraData {
-        std::string handle;                ///< Tool handle ("0A", "0B", etc.)
-        double position[3];                ///< Position [x, y, z] in mm
-        double orientation[4];             ///< Quaternion [qx, qy, qz, qw]
-        bool visible;                      ///< Tool visibility status
-        double error;                      ///< RMS error in mm
-        std::chrono::steady_clock::time_point timestamp;  ///< Data timestamp
-    };
-
-    // ==========================================================================
-    // INITIALIZATION AND SETUP METHODS
-    // ==========================================================================
-
-    /**
-     * @brief Declare all ROS parameters with defaults
-     */
-    void declare_parameters();
-
-    /**
-     * @brief Load parameters from ROS parameter server
-     */
-    void load_parameters();
-
-    /**
-     * @brief Validate loaded parameters for correctness
-     * @return true if all parameters are valid
-     */
-    bool validate_parameters();
-
-    /**
-     * @brief Clean shutdown of Aurora system and threads
-     */
-    void shutdown();
-
-    // ==========================================================================
-    // AURORA SYSTEM METHODS (using ndi_aurora driver)
-    // ==========================================================================
-
-    /**
-     * @brief Setup Aurora system using ndi_aurora driver
-     * @return true if setup successful
-     */
-    bool setup_aurora();
-
-    /**
-     * @brief Parse Aurora data from driver structures
-     * @param poses Vector of ToolPose from driver
-     * @param port_indexes Vector of port indexes from driver
-     * @param visible_tools Vector of visible tool indexes from driver
-     * @return Parsed Aurora data if successful, nullopt otherwise
-     */
-    std::optional<AuroraData> parse_aurora_data(
-        const std::vector<AuroraDriver::ToolPose>& poses, 
-        const std::vector<int>& port_indexes, 
-        const std::vector<int>& visible_tools);
-
-    // ==========================================================================
-    // DATA PROCESSING METHODS
-    // ==========================================================================
-
-    /**
-     * @brief Apply data filtering (moving average)
-     * @param new_data New Aurora data point
-     * @return Filtered Aurora data
-     */
-    AuroraData apply_filtering(const AuroraData& new_data);
-
-    // ==========================================================================
-    // THREAD FUNCTIONS
-    // ==========================================================================
-
-    /**
-     * @brief Background thread function for reading Aurora data
-     * Continuously calls measureTool and parses responses using ndi_aurora driver
-     */
-    void read_thread_function();
-
-    /**
-     * @brief Timer callback for publishing TF transforms
-     * Called at the configured publish rate
-     */
-    void tf_publish_callback();       
+    // =========================================================================
+    // PARAMETER STRUCTURES
+    // =========================================================================
     
-    /**
-     * @brief Timer callback for publishing aurora data messages
-     */
+    struct Parameters {
+        // Serial communication
+        std::string serial_port;
+        int baud_rate;
+        double serial_timeout_sec;
+        
+        // Multi-sensor configuration
+        int num_sensors;  // Number of sensors (1-4)
+        std::vector<std::string> tool_rom_files;
+        std::vector<std::string> port_handles;
+        std::vector<std::string> topic_names;
+        std::vector<std::string> child_frame_names;
+        
+        // Aurora system
+        std::string reference_port;
+        int track_reply_option;
+        std::string measure_reply_option;
+        bool status_reply;
+        
+        // ROS topics
+        std::string frame_id;
+        double publish_rate_hz;
+        int queue_size;
+        
+        // Data processing
+        bool enable_data_filtering;
+        int filter_window_size;
+        double position_scale_factor;
+        double orientation_scale_factor;
+        double error_scale_factor;
+        
+        // Connection and retry
+        double command_timeout_sec;
+        int max_connection_retries;
+        double retry_delay_sec;
+        
+        // Logging
+        bool debug_mode;
+        bool log_raw_data;
+    };
+    
+    // =========================================================================
+    // DATA STRUCTURES
+    // =========================================================================
+    
+    struct AuroraData {
+        std::chrono::time_point<std::chrono::steady_clock> timestamp;
+        std::string handle;
+        int sensor_index{-1};
+        bool visible{false};
+        std::array<double, 3> position{{0.0, 0.0, 0.0}};      // x, y, z in mm
+        std::array<double, 4> orientation{{0.0, 0.0, 0.0, 1.0}};  // quaternion: x, y, z, w
+        double error{0.0};
+    };
+    
+    // =========================================================================
+    // PARAMETER MANAGEMENT
+    // =========================================================================
+    
+    void declare_parameters();
+    void load_parameters();
+    bool validate_parameters();
+    
+    // =========================================================================
+    // AURORA SYSTEM MANAGEMENT
+    // =========================================================================
+    
+    bool setup_aurora();
+    
+    // =========================================================================
+    // DATA PROCESSING
+    // =========================================================================
+    
+    std::vector<std::optional<AuroraData>> parse_aurora_data_multi(
+        const std::vector<AuroraDriver::ToolPose>& poses,
+        const std::vector<int>& port_indexes,
+        const std::vector<int>& visible_tools);
+    
+    AuroraData apply_filtering(const AuroraData& new_data, int sensor_index);
+    
+    // =========================================================================
+    // THREAD FUNCTIONS
+    // =========================================================================
+    
+    void read_thread_function();
+    
+    // =========================================================================
+    // TIMER CALLBACKS
+    // =========================================================================
+    
+    void tf_publish_callback();
     void aurora_data_publish_callback();
-
-    // ==========================================================================
+    
+    // =========================================================================
+    // SHUTDOWN
+    // =========================================================================
+    
+    void shutdown();
+    
+    // =========================================================================
     // MEMBER VARIABLES
-    // ==========================================================================
-
-    /// Configuration parameters
+    // =========================================================================
+    
+    // Parameters
     Parameters params_;
-
-    /// TF broadcaster for aurora_base -> endo_aurora
+    
+    // Aurora driver
+    std::unique_ptr<AuroraDriver::ndi_aurora> aurora_driver_;
+    
+    // ROS publishers (one per sensor)
+    std::vector<rclcpp::Publisher<aurora_pub::msg::AuroraData>::SharedPtr> aurora_data_publishers_;
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
-
-    /// ROS2 publisher for aurora diagnostic data
-    rclcpp::Publisher<aurora_pub::msg::AuroraData>::SharedPtr aurora_data_publisher_;
-
-    /// Timers for periodic publishing
+    
+    // Timers
     rclcpp::TimerBase::SharedPtr tf_timer_;
     rclcpp::TimerBase::SharedPtr aurora_data_timer_;
-
-    /// Aurora driver instance
-    std::unique_ptr<AuroraDriver::ndi_aurora> aurora_driver_;
-
-    /// Latest valid Aurora data
-    AuroraData latest_data_;
-
-    /// Mutex for thread-safe data access
-    std::mutex data_mutex_;
-
-    /// Flag for active tracking
-    std::atomic<bool> tracking_active_;
-
-    /// Flag for valid data availability
-    std::atomic<bool> has_valid_data_;
-
-    /// Background thread for reading Aurora data
+    
+    // Threading
     std::thread read_thread_;
-
-    /// Data buffer for filtering
-    std::vector<AuroraData> data_buffer_;
+    std::atomic<bool> tracking_active_;
+    std::mutex data_mutex_;
+    
+    // Data storage (one per sensor)
+    std::vector<AuroraData> latest_data_;
+    std::vector<bool> has_valid_data_;
+    std::vector<std::deque<AuroraData>> data_buffers_;  // For filtering, one buffer per sensor
 };
 
 } // namespace aurora_pub
+
+#endif // AURORA_PUBLISHER_NODE_HPP
