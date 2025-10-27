@@ -5,38 +5,44 @@ aurora_publisher_node:
     baud_rate: 230400
     serial_timeout_sec: 2.0
     
+    # =========================================================================
     # Aurora - Multi-sensor configuration
-    # Number of sensors to use (maximum 4)
-    num_sensors: 2  # Change this value from 1 to 4 based on how many sensors you use
+    # =========================================================================
     
-    # ROM file for each sensor (one per sensor)
+    # TOTAL number of sensors (including both regular and autoconfigured)
+    num_sensors: 1  # Total: 1 regular sensor (with ROM file)
+    
+    # ROM files for sensors that need explicit ROM definition
+    # For autoconfigured sensors (like NDI pens), do NOT include ROM file  
+    # The length of this array should be: num_sensors - num_autoconfig_sensors
     tool_rom_files: 
-      - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"
-      - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"
-      # Add other ROM files if you have different sensors
-      # - "/workspace/src/aurora_pub/rom/other_sensor.rom"
-      # - "/workspace/src/aurora_pub/rom/other_sensor.rom"
+      - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # Sensor 0A
     
-    # Port handles (in hexadecimal: 0A, 0B, 0C, 0D, etc.)
+    # Port handles for ALL sensors (in hexadecimal: 0A, 0B, 0C, 0D, etc.)
+    # Must have num_sensors entries
     port_handles: 
-      - "0A"  # Port 1
-      - "0B"  # Port 2
-      # - "0C"  # Port 3
-      # - "0D"  # Port 4
+      - "0A"  # Port 1 - Regular sensor with ROM file
     
-    # Topic names for each sensor
+    # =========================================================================
+    # AUTOCONFIGURED PORTS (for NDI Pens with internal ROM)
+    # =========================================================================
+    # List of ports that will be autoconfigured by the Aurora system
+    # These sensors have internal ROM and don't need external ROM files
+    # Example: NDI passive stylus pens
+    port_handles_autoconfig: 
+      - ""  # Empty - no autoconfigured sensors
+    
+    # =========================================================================
+    # ROS Topics and TF Frames
+    # =========================================================================
+    
+    # Topic names for ALL sensors (must have num_sensors entries)
     topic_names:
-      - "/aurora_data_sensor0"
-      - "/aurora_data_sensor1"
-      # - "/aurora_data_sensor2"
-      # - "/aurora_data_sensor3"
+      - "/aurora_data_sensor0"  # Sensor 0A (regular)
     
-    # Child frame names for TF (each sensor will have its own frame)
+    # Child frame names for TF for ALL sensors (must have num_sensors entries)
     child_frame_names:
-      - "endo_aurora_sensor0"
-      - "endo_aurora_sensor1"
-      # - "endo_aurora_sensor2"
-      # - "endo_aurora_sensor3"
+      - "endo_aurora_sensor0"   # Sensor 0A (regular)
     
     # Common reference frame for all sensors
     frame_id: "aurora_base"
@@ -44,27 +50,76 @@ aurora_publisher_node:
     # Reference port for tracking
     reference_port: "10"
     
-    # Tracking and measurement options
+    # =========================================================================
+    # Tracking and Measurement Options
+    # =========================================================================
     track_reply_option: 80
     measure_reply_option: "0001"
     status_reply: true
     
-    # ROS
+    # =========================================================================
+    # ROS Publishing
+    # =========================================================================
     publish_rate_hz: 40.0
     queue_size: 10
     
-    # Processing
+    # =========================================================================
+    # Data Processing
+    # =========================================================================
     enable_data_filtering: true
     filter_window_size: 4
     position_scale_factor: 1.0
     orientation_scale_factor: 1.0
     error_scale_factor: 1.0
     
-    # Timeouts
+    # =========================================================================
+    # Connection and Timeouts
+    # =========================================================================
     command_timeout_sec: 2.0
     max_connection_retries: 3
     retry_delay_sec: 2.0
     
+    # =========================================================================
     # Logging
+    # =========================================================================
     debug_mode: false
     log_raw_data: false
+
+# =========================================================================
+# CONFIGURATION EXAMPLES
+# =========================================================================
+
+# Example 1: Single regular sensor (with ROM file) - CURRENT CONFIGURATION
+# num_sensors: 1
+# tool_rom_files: ["/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"]
+# port_handles: ["0A"]
+# port_handles_autoconfig: [""]  # Empty - no autoconfigured sensors
+
+# Example 2: Single pen (all autoconfigured)
+# num_sensors: 1
+# tool_rom_files: [""]  # Empty - no ROM files needed
+# port_handles: ["0A"]
+# port_handles_autoconfig: ["0A"]  # Pen is autoconfigured
+
+# Example 3: Two regular sensors (no pens)
+# num_sensors: 2
+# tool_rom_files: 
+#   - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"
+#   - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"
+# port_handles: ["0A", "0B"]
+# port_handles_autoconfig: [""]  # Empty - no autoconfigured sensors
+
+# Example 4: Mixed (1 regular sensor + 1 pen)
+# num_sensors: 2
+# tool_rom_files: 
+#   - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # Only for 0A
+# port_handles: ["0A", "0B"]
+# port_handles_autoconfig: ["0B"]  # Only 0B is autoconfigured
+
+# Example 5: Multiple regular + multiple pens
+# num_sensors: 4
+# tool_rom_files: 
+#   - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # For 0A
+#   - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # For 0B
+# port_handles: ["0A", "0B", "0C", "0D"]
+# port_handles_autoconfig: ["0C", "0D"]  # Ports 0C and 0D are pens

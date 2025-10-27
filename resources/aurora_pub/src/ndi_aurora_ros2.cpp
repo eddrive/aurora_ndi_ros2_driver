@@ -464,10 +464,9 @@ namespace AuroraDriver
     }
 
     //initialize and enable port handles for wireless tools   
-    bool ndi_aurora::initPortHandleWT(const std::vector<std::string>& toolDefinitions, const std::vector<std::string>& toolDefPortHandles, const std::vector<std::string>& defaultToolsConfiguration, const std::string& refPortHandle)
+    bool ndi_aurora::initPortHandleWT(const std::vector<std::string>& toolDefinitions, const std::vector<std::string>& toolDefPortHandles, const std::vector<std::string>& portHandlesAutoconfig, const std::string& refPortHandle)
     {
-        (void)defaultToolsConfiguration; // suppress unused parameter warning
-        
+        // Validate port handles
         for (size_t idx = 0; idx < toolDefPortHandles.size(); idx++)
             if (2 != toolDefPortHandles.at(idx).length()) {
                 std::cout << "(ndi_aurora) Error: Length of the port handles must be 2" << std::endl;
@@ -479,10 +478,22 @@ namespace AuroraDriver
         }
         sign_refPortHandle[0] = refPortHandle.c_str()[0];
         sign_refPortHandle[1] = refPortHandle.c_str()[1];
-        if (toolDefinitions.size() != toolDefPortHandles.size()) {
-            std::cout << "(ndi_aurora) the number of tool definition files and port Handles to attach to has to be of the same size" << std::endl;
+        
+        // Calculate how many ports need ROM files vs autoconfigured
+        int num_autoconfig = portHandlesAutoconfig.size();
+        int expected_rom_files = toolDefPortHandles.size() - num_autoconfig;
+        
+        if (toolDefinitions.size() != static_cast<size_t>(expected_rom_files)) {
+            std::cout << "(ndi_aurora) ERROR: Number of tool definition files (" << toolDefinitions.size() 
+                      << ") doesn't match expected (" << expected_rom_files 
+                      << " = total ports " << toolDefPortHandles.size() 
+                      << " - autoconfig " << num_autoconfig << ")" << std::endl;
             return false;
         }
+        
+        std::cout << "(ndi_aurora) Configuration: " << toolDefPortHandles.size() << " total ports, "
+                  << toolDefinitions.size() << " with ROM files, "
+                  << num_autoconfig << " autoconfigured" << std::endl;
 
         //initialize
         PHint = 0;
@@ -538,7 +549,24 @@ namespace AuroraDriver
 
         std::cout << "(ndi_aurora) Number of ports located: " << noTools << std::endl << "Status of the ports:" << std::endl;
         
-        // FIRST LOOP: Only load ROM files for configured ports
+        // Helper function to check if port is autoconfigured
+        auto isAutoconfig = [&portHandlesAutoconfig](const std::string& port) -> bool {
+            for (const auto& ac_port : portHandlesAutoconfig) {
+                if (port == ac_port) return true;
+            }
+            return false;
+        };
+        
+        // Helper function to check if port is in configured list
+        auto isConfigured = [&toolDefPortHandles](const std::string& port) -> bool {
+            for (const auto& handle : toolDefPortHandles) {
+                if (port == handle) return true;
+            }
+            return false;
+        };
+        
+        // FIRST LOOP: Load ROM files for configured ports (excluding autoconfig)
+        int rom_file_index = 0;
         for (k = 0; k < noTools; k++)
         {
             PHint = 0;
@@ -549,33 +577,34 @@ namespace AuroraDriver
             std::cout << "Port: " << k << " with handle: " << sPH << 
                                     "; has status of: " << sPHStatus << std::endl;
             
-            // Check if this port is in our configured list
-            indDefFile = -1;
-            for (size_t idx = 0; idx < toolDefPortHandles.size(); idx++) {
-                if (0 == sPH.compare(toolDefPortHandles.at(idx))) {
-                    indDefFile = static_cast<int>(idx);
-                    break;
-                }
+            // Check if this port is configured
+            if (!isConfigured(sPH)) {
+                std::cout << "\tSkipping unconfigured port: " << sPH << std::endl;
+                continue;
             }
             
-            // Only process ports that are configured
-            if (-1 != indDefFile) {
-                portHandle[0] = sPH.c_str()[0];
-                portHandle[1] = sPH.c_str()[1];
-
-                std::cout << "\tThis port will load Tool Definition File: " << toolDefinitions.at(indDefFile) << std::endl;
-
-                // Load the tool definition file
-                romFileName = const_cast<char*>(toolDefinitions[indDefFile].c_str());
-                std::cout << "[Debug] (ndi_aurora) Trying to open the file: " << romFileName << std::endl;
-                if (!loadToolDefFile(portHandle, romFileName))
-                {
-                    std::cout << "(ndi_aurora) loading tool definition file failed." << "\n" << std::endl;
-                    return false;
-                }
-            } else {
-                std::cout << "\tSkipping unconfigured port: " << sPH << std::endl;
+            // Check if this port needs autoconfig
+            if (isAutoconfig(sPH)) {
+                std::cout << "\tPort " << sPH << " will be AUTOCONFIGURED (using internal ROM)" << std::endl;
+                // Don't load external ROM file for autoconfigured ports
+                continue;
             }
+            
+            // Regular port with external ROM file
+            portHandle[0] = sPH.c_str()[0];
+            portHandle[1] = sPH.c_str()[1];
+
+            std::cout << "\tThis port will load Tool Definition File: " << toolDefinitions.at(rom_file_index) << std::endl;
+
+            // Load the tool definition file
+            romFileName = const_cast<char*>(toolDefinitions[rom_file_index].c_str());
+            std::cout << "[Debug] (ndi_aurora) Trying to open the file: " << romFileName << std::endl;
+            if (!loadToolDefFile(portHandle, romFileName))
+            {
+                std::cout << "(ndi_aurora) loading tool definition file failed." << "\n" << std::endl;
+                return false;
+            }
+            rom_file_index++;
         }
 
         do {
@@ -586,7 +615,7 @@ namespace AuroraDriver
                 return false;
             }
 
-            // Initialize ONLY configured port handles
+            // Initialize ALL configured port handles (including autoconfig)
             PHint = 0;
             PHint2 = 0;
             char2int(returnMessageCopy[0], PHint);
@@ -596,17 +625,8 @@ namespace AuroraDriver
             for (k = 0; k < noPorts2Init; k++) {
                 sPH = std::string(returnMessageCopy + (2 + k * 5), 2);
                 
-                // Check if this port is in our configured list
-                bool isConfigured = false;
-                for (const auto& configuredHandle : toolDefPortHandles) {
-                    if (sPH == configuredHandle) {
-                        isConfigured = true;
-                        break;
-                    }
-                }
-                
-                // Only initialize configured ports
-                if (isConfigured) {
+                // Initialize ALL configured ports (both ROM and autoconfig)
+                if (isConfigured(sPH)) {
                     portHandle[0] = sPH.c_str()[0];
                     portHandle[1] = sPH.c_str()[1];
                     if (!portHandleInit(portHandle))
@@ -614,7 +634,12 @@ namespace AuroraDriver
                         std::cout << "(ndi_aurora) port handle initialization of PH " << sPH << " failed." << "\n" << std::endl;
                         return false;
                     }
-                    std::cout << "(ndi_aurora) Successfully initialized configured port: " << sPH << std::endl;
+                    
+                    if (isAutoconfig(sPH)) {
+                        std::cout << "(ndi_aurora) Successfully initialized AUTOCONFIGURED port: " << sPH << std::endl;
+                    } else {
+                        std::cout << "(ndi_aurora) Successfully initialized configured port: " << sPH << std::endl;
+                    }
                 } else {
                     std::cout << "(ndi_aurora) Skipping initialization of unconfigured port: " << sPH << std::endl;
                 }
@@ -629,7 +654,7 @@ namespace AuroraDriver
                 return false;
             }
 
-            // Enable ONLY configured ports
+            // Enable ALL configured ports (both ROM and autoconfig)
             PHint = 0;
             PHint2 = 0;
             char2int(returnMessageCopy[0], PHint);
@@ -639,17 +664,8 @@ namespace AuroraDriver
             for (k = 0; k < noPorts2Enable; k++) {
                 sPH = std::string(returnMessageCopy + (2 + k * 5), 2);
                 
-                // Check if this port is in our configured list
-                bool isConfigured = false;
-                for (const auto& configuredHandle : toolDefPortHandles) {
-                    if (sPH == configuredHandle) {
-                        isConfigured = true;
-                        break;
-                    }
-                }
-                
-                // Only enable configured ports
-                if (isConfigured) {
+                // Enable ALL configured ports
+                if (isConfigured(sPH)) {
                     portHandle[0] = sPH.c_str()[0];
                     portHandle[1] = sPH.c_str()[1];
                     
@@ -667,7 +683,12 @@ namespace AuroraDriver
                         std::cout << "(ndi_aurora) port handle enable of PH " << sPH << " failed." << "\n" << std::endl;
                         return false;
                     }
-                    std::cout << "(ndi_aurora) Successfully enabled configured port: " << sPH << std::endl;
+                    
+                    if (isAutoconfig(sPH)) {
+                        std::cout << "(ndi_aurora) Successfully enabled AUTOCONFIGURED port: " << sPH << std::endl;
+                    } else {
+                        std::cout << "(ndi_aurora) Successfully enabled configured port: " << sPH << std::endl;
+                    }
                 } else {
                     std::cout << "(ndi_aurora) Skipping enable of unconfigured port: " << sPH << std::endl;
                 }
@@ -693,6 +714,7 @@ namespace AuroraDriver
         std::cout << "(ndi_aurora) Successfully configured " << noPortsEnabled << " port handles" << std::endl;
         return true;
     }
+
 
     // PARTE 4
 
@@ -1292,6 +1314,3 @@ namespace AuroraDriver
     }
 
 } // namespace AuroraDriver
-
-
-

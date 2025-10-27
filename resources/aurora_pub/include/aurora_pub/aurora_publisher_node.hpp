@@ -42,9 +42,10 @@ private:
         double serial_timeout_sec;
         
         // Multi-sensor configuration
-        int num_sensors;  // Number of sensors (1-4)
+        int num_sensors;  
         std::vector<std::string> tool_rom_files;
         std::vector<std::string> port_handles;
+        std::vector<std::string> port_handles_autoconfig;  
         std::vector<std::string> topic_names;
         std::vector<std::string> child_frame_names;
         

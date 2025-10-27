@@ -93,10 +93,10 @@ void AuroraPublisherNode::declare_parameters()
     this->declare_parameter("serial_timeout_sec", 2.0);
     
     // Multi-sensor configuration
-    this->declare_parameter("num_sensors", 1);  // Number of sensors to use (1-4)
-    this->declare_parameter("tool_rom_files", std::vector<std::string>{
-        "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"});
+    this->declare_parameter("num_sensors", 1);  // Total number of sensors (including autoconfig)
+    this->declare_parameter("tool_rom_files", std::vector<std::string>{});  // May be empty for all-autoconfig
     this->declare_parameter("port_handles", std::vector<std::string>{"0A"});
+    this->declare_parameter("port_handles_autoconfig", std::vector<std::string>{});  // autoconfigured ports
     this->declare_parameter("topic_names", std::vector<std::string>{"/aurora_data_sensor0"});
     this->declare_parameter("child_frame_names", std::vector<std::string>{"endo_aurora_sensor0"});
     
@@ -137,8 +137,27 @@ void AuroraPublisherNode::load_parameters()
     
     // Load multi-sensor configuration
     params_.num_sensors = this->get_parameter("num_sensors").as_int();
-    params_.tool_rom_files = this->get_parameter("tool_rom_files").as_string_array();
+    
+    // Load tool_rom_files - may contain empty strings as placeholders for all-autoconfig setups
+    auto rom_files_raw = this->get_parameter("tool_rom_files").as_string_array();
+    params_.tool_rom_files.clear();
+    for (const auto& rom_file : rom_files_raw) {
+        if (!rom_file.empty()) {
+            params_.tool_rom_files.push_back(rom_file);
+        }
+    }
+    
     params_.port_handles = this->get_parameter("port_handles").as_string_array();
+    
+    // Load port_handles_autoconfig - may contain empty strings as placeholders
+    auto autoconfig_raw = this->get_parameter("port_handles_autoconfig").as_string_array();
+    params_.port_handles_autoconfig.clear();
+    for (const auto& handle : autoconfig_raw) {
+        if (!handle.empty()) {
+            params_.port_handles_autoconfig.push_back(handle);
+        }
+    }
+    
     params_.topic_names = this->get_parameter("topic_names").as_string_array();
     params_.child_frame_names = this->get_parameter("child_frame_names").as_string_array();
     
@@ -192,13 +211,18 @@ bool AuroraPublisherNode::validate_parameters()
         valid = false;
     }
     
-    // Validate array sizes match num_sensors
-    if (static_cast<int>(params_.tool_rom_files.size()) != params_.num_sensors) {
-        RCLCPP_ERROR(this->get_logger(), "tool_rom_files size (%zu) doesn't match num_sensors (%d)", 
-                     params_.tool_rom_files.size(), params_.num_sensors);
+    // Validate ROM files size considering autoconfigured sensors
+    int num_autoconfig = params_.port_handles_autoconfig.size();
+    int expected_rom_files = params_.num_sensors - num_autoconfig;
+    
+    if (static_cast<int>(params_.tool_rom_files.size()) != expected_rom_files) {
+        RCLCPP_ERROR(this->get_logger(), 
+                     "tool_rom_files size (%zu) doesn't match expected (%d = num_sensors %d - autoconfig %d)", 
+                     params_.tool_rom_files.size(), expected_rom_files, params_.num_sensors, num_autoconfig);
         valid = false;
     }
     
+    // Validate port_handles size matches num_sensors
     if (static_cast<int>(params_.port_handles.size()) != params_.num_sensors) {
         RCLCPP_ERROR(this->get_logger(), "port_handles size (%zu) doesn't match num_sensors (%d)", 
                      params_.port_handles.size(), params_.num_sensors);
@@ -215,6 +239,23 @@ bool AuroraPublisherNode::validate_parameters()
         RCLCPP_ERROR(this->get_logger(), "child_frame_names size (%zu) doesn't match num_sensors (%d)", 
                      params_.child_frame_names.size(), params_.num_sensors);
         valid = false;
+    }
+    
+    // Validate that autoconfig ports are subset of port_handles
+    for (const auto& autoconfig_handle : params_.port_handles_autoconfig) {
+        bool found = false;
+        for (const auto& handle : params_.port_handles) {
+            if (handle == autoconfig_handle) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            RCLCPP_ERROR(this->get_logger(), 
+                        "Autoconfig port '%s' not found in port_handles list", 
+                        autoconfig_handle.c_str());
+            valid = false;
+        }
     }
     
     // Validate tool handles
@@ -267,17 +308,46 @@ bool AuroraPublisherNode::setup_aurora()
         RCLCPP_WARN(this->get_logger(), "Aurora beep failed, but continuing...");
     }
     
-    // Initialize port handles with tool definitions for all sensors
-    std::vector<std::string> toolDefinitions = params_.tool_rom_files;
-    std::vector<std::string> portHandles = params_.port_handles;
+    // Separate port handles into regular and autoconfigured
+    std::vector<std::string> toolDefinitions;
+    std::vector<std::string> portHandlesWithROM;
+    std::vector<std::string> portHandlesAutoconfig = params_.port_handles_autoconfig;
     
-    RCLCPP_INFO(this->get_logger(), "Initializing %d port handles...", params_.num_sensors);
+    // Build lists of ports with ROM files vs autoconfigured
+    int rom_file_index = 0;
     for (int i = 0; i < params_.num_sensors; ++i) {
-        RCLCPP_INFO(this->get_logger(), "  Sensor %d: handle=%s, rom=%s", 
-                    i, portHandles[i].c_str(), toolDefinitions[i].c_str());
+        const std::string& handle = params_.port_handles[i];
+        
+        // Check if this port is in the autoconfig list
+        bool is_autoconfig = false;
+        for (const auto& autoconfig_handle : portHandlesAutoconfig) {
+            if (handle == autoconfig_handle) {
+                is_autoconfig = true;
+                break;
+            }
+        }
+        
+        if (!is_autoconfig) {
+            // Regular sensor with ROM file
+            portHandlesWithROM.push_back(handle);
+            toolDefinitions.push_back(params_.tool_rom_files[rom_file_index]);
+            rom_file_index++;
+            
+            RCLCPP_INFO(this->get_logger(), "  Sensor %d: handle=%s, rom=%s", 
+                        i, handle.c_str(), params_.tool_rom_files[rom_file_index-1].c_str());
+        } else {
+            // Autoconfigured sensor (e.g., NDI pen)
+            RCLCPP_INFO(this->get_logger(), "  Sensor %d: handle=%s (AUTOCONFIGURED - no ROM file)", 
+                        i, handle.c_str());
+        }
     }
     
-    if (!aurora_driver_->initPortHandleWT(toolDefinitions, portHandles)) {
+    RCLCPP_INFO(this->get_logger(), "Initializing %d port handles (%d with ROM, %d autoconfigured)...", 
+                params_.num_sensors, (int)portHandlesWithROM.size(), (int)portHandlesAutoconfig.size());
+    
+    // Call initPortHandleWT with autoconfig parameter
+    // IMPORTANT: Second parameter must be ALL port handles (not just ROM ports)
+    if (!aurora_driver_->initPortHandleWT(toolDefinitions, params_.port_handles, portHandlesAutoconfig, params_.reference_port)) {
         RCLCPP_ERROR(this->get_logger(), "Failed to initialize port handles");
         return false;
     }
