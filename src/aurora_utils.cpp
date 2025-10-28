@@ -1,11 +1,11 @@
-#include "aurora_pub/aurora_utils.hpp"
+#include "aurora_ndi_ros2_driver/aurora_utils.hpp"
 
 #include <stdexcept>
 #include <algorithm>
 #include <cmath>
 #include <cctype>
 
-namespace aurora_pub
+namespace aurora_ndi_ros2_driver
 {
 namespace utils
 {
@@ -91,4 +91,4 @@ bool validate_rom_path(const std::string& rom_path)
 }
 
 } // namespace utils
-} // namespace aurora_pub
+} // namespace aurora_ndi_ros2_driver

@@ -7,7 +7,7 @@
 #include <sstream>
 #include <algorithm>
 
-using namespace aurora_pub;
+using namespace aurora_ndi_ros2_driver;
 
 // =============================================================================
 // CONSTRUCTOR AND DESTRUCTOR
@@ -42,7 +42,7 @@ AuroraPublisherNode::AuroraPublisherNode() : Node("aurora_publisher_node")
     // Initialize publishers for each sensor
     aurora_data_publishers_.resize(params_.num_sensors);
     for (int i = 0; i < params_.num_sensors; ++i) {
-        aurora_data_publishers_[i] = this->create_publisher<aurora_pub::msg::AuroraData>(
+        aurora_data_publishers_[i] = this->create_publisher<aurora_ndi_ros2_driver::msg::AuroraData>(
             params_.topic_names[i], params_.queue_size);
         RCLCPP_INFO(this->get_logger(), "Created publisher for sensor %d on topic: %s", 
                     i, params_.topic_names[i].c_str());
@@ -600,7 +600,7 @@ void AuroraPublisherNode::aurora_data_publish_callback()
         const AuroraData& current_data = latest_data_[sensor_idx];
         
         // ALWAYS PUBLISH THE AURORA MESSAGE (even when not visible)
-        auto aurora_msg = aurora_pub::msg::AuroraData();
+        auto aurora_msg = aurora_ndi_ros2_driver::msg::AuroraData();
         
         // Keep original position data in millimeters (even if invalid)
         aurora_msg.position.x = current_data.position[0];  // mm

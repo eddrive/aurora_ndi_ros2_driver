@@ -16,7 +16,7 @@ aurora_publisher_node:
     # For autoconfigured sensors (like NDI pens), do NOT include ROM file  
     # The length of this array should be: num_sensors - num_autoconfig_sensors
     tool_rom_files: 
-      - "/aurora_ndi_ros2_driver/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # Sensor 0A
+      - "/workspace/src/aurora_ndi_ros2_driver/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # Sensor 0A
     
     # Port handles for ALL sensors (in hexadecimal: 0A, 0B, 0C, 0D, etc.)
     # Must have num_sensors entries
@@ -38,11 +38,11 @@ aurora_publisher_node:
     
     # Topic names for ALL sensors (must have num_sensors entries)
     topic_names:
-      - "/aurora_data_pen"  # Sensor 0A (regular)
+      - "/aurora_data_sensor0"  # Sensor 0A (regular)
     
     # Child frame names for TF for ALL sensors (must have num_sensors entries)
     child_frame_names:
-      - "endo_aurora_pen"   # Sensor 0A (regular)
+      - "endo_aurora_sensor0"   # Sensor 0A (regular)
     
     # Common reference frame for all sensors
     frame_id: "aurora_base"
