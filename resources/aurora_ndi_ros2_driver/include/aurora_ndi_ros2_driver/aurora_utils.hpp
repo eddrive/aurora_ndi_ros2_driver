@@ -6,7 +6,7 @@
 #include <algorithm> 
 #include <cctype> 
 
-namespace aurora_pub
+namespace aurora_ndi_ros2_driver
 {
 namespace utils
 {
@@ -75,4 +75,4 @@ inline bool is_measurement_quality_ok(double error_mm, double max_acceptable_err
 }
 
 } // namespace utils
-} // namespace aurora_pub
+} // namespace aurora_ndi_ros2_driver

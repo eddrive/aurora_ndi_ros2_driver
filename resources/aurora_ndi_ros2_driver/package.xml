@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>aurora_pub</name>
+  <name>aurora_ndi_ros2_driver</name>
   <version>1.0.0</version>
   <description>Aurora NDI sensor publisher for ROS2 with direct USB communication</description>
    

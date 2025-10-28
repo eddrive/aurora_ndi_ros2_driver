@@ -32,10 +32,10 @@ fi
 
 # Check for Aurora package
 echo "Checking for installed packages..."
-if ros2 pkg list 2>/dev/null | grep -q "^aurora_pub$"; then
-    echo "✓ Package 'aurora_pub' found"
+if ros2 pkg list 2>/dev/null | grep -q "^aurora_ndi_ros2_driver$"; then
+    echo "✓ Package 'aurora_ndi_ros2_driver' found"
 else
-    echo "✗ Package 'aurora_pub' missing"
+    echo "✗ Package 'aurora_ndi_ros2_driver' missing"
 fi
 
 # Setup permanent environment for bash sessions
@@ -57,7 +57,7 @@ export ROS_LOCALHOST_ONLY=0
 EOF
 
 echo "Starting Aurora NDI tracking system..."
-ros2 launch aurora_pub aurora_pub.launch.py &
+ros2 launch aurora_ndi_ros2_driver aurora_pub.launch.py &
 
 # Wait for Aurora initialization
 echo "Waiting for Aurora initialization..."

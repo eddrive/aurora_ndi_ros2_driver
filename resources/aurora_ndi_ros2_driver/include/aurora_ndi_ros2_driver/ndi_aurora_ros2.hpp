@@ -1,5 +1,4 @@
-// include/aurora_pub/ndi_aurora_ros2.hpp
-// Versione adattata per ROS2 - rimuove dipendenze Orocos
+// include/aurora_ndi_ros2_driver/ndi_aurora_ros2.hpp
 #pragma once
 
 //Include system headers

@@ -38,7 +38,7 @@ RUN mkdir -p $COLCON_WS/src
 WORKDIR $COLCON_WS
 
 # Copy Aurora driver package
-COPY resources/aurora_pub $COLCON_WS/src/aurora_pub
+COPY resources/aurora_ndi_ros2_driver $COLCON_WS/src/aurora_ndi_ros2_driver
 
 # Install ROS2 dependencies
 RUN rosdep update && \

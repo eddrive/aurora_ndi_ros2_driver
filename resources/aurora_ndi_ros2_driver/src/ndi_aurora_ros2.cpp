@@ -1,6 +1,6 @@
 // src/ndi_aurora_ros2.cpp
 // Versione adattata per ROS2 - rimuove dipendenze Orocos
-#include "aurora_pub/ndi_aurora_ros2.hpp"
+#include "aurora_ndi_ros2_driver/ndi_aurora_ros2.hpp"
 #include <unistd.h>
 #include <iostream>
 #include <cstring>

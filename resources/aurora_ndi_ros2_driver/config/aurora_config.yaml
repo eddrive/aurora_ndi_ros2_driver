@@ -16,7 +16,7 @@ aurora_publisher_node:
     # For autoconfigured sensors (like NDI pens), do NOT include ROM file  
     # The length of this array should be: num_sensors - num_autoconfig_sensors
     tool_rom_files: 
-      - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # Sensor 0A
+      - "/workspace/src/aurora_ndi_ros2_driver/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # Sensor 0A
     
     # Port handles for ALL sensors (in hexadecimal: 0A, 0B, 0C, 0D, etc.)
     # Must have num_sensors entries
@@ -91,7 +91,7 @@ aurora_publisher_node:
 
 # Example 1: Single regular sensor (with ROM file) - CURRENT CONFIGURATION
 # num_sensors: 1
-# tool_rom_files: ["/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"]
+# tool_rom_files: ["/aurora_ndi_ros2_driver/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"]
 # port_handles: ["0A"]
 # port_handles_autoconfig: [""]  # Empty - no autoconfigured sensors
 
@@ -104,22 +104,22 @@ aurora_publisher_node:
 # Example 3: Two regular sensors (no pens)
 # num_sensors: 2
 # tool_rom_files: 
-#   - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"
-#   - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"
+#   - "/aurora_ndi_ros2_driver/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"
+#   - "/aurora_ndi_ros2_driver/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"
 # port_handles: ["0A", "0B"]
 # port_handles_autoconfig: [""]  # Empty - no autoconfigured sensors
 
 # Example 4: Mixed (1 regular sensor + 1 pen)
 # num_sensors: 2
 # tool_rom_files: 
-#   - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # Only for 0A
+#   - "/aurora_ndi_ros2_driver/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # Only for 0A
 # port_handles: ["0A", "0B"]
 # port_handles_autoconfig: ["0B"]  # Only 0B is autoconfigured
 
 # Example 5: Multiple regular + multiple pens
 # num_sensors: 4
 # tool_rom_files: 
-#   - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # For 0A
-#   - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # For 0B
+#   - "/aurora_ndi_ros2_driver/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # For 0A
+#   - "/aurora_ndi_ros2_driver/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # For 0B
 # port_handles: ["0A", "0B", "0C", "0D"]
 # port_handles_autoconfig: ["0C", "0D"]  # Ports 0C and 0D are pens
