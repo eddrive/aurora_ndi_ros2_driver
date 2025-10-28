@@ -1,36 +1,49 @@
-# Aurora NDI ROS2 Driver
+# Aurora NDI ROS2 Driver - Docker Setup
 
-A Docker-containerized ROS2 package for real-time electromagnetic tracking using the NDI Aurora system.
+A fully containerized ROS2 Humble environment for real-time electromagnetic tracking using the NDI Aurora system.
 
 ## Table of Contents
 
 * [Overview](#overview)
+* [Branches](#branches)
 * [Prerequisites](#prerequisites)
-* [Installation](#installation)
 * [Quick Start](#quick-start)
-* [ROS2 Package](#ros2-package)
+* [Docker Setup](#docker-setup)
 * [Configuration](#configuration)
-  * [Multi-Sensor Setup](#multi-sensor-setup)
-  * [Autoconfigured Tools (NDI Pens)](#autoconfigured-tools-ndi-pens)
-  * [Parameter Reference](#parameter-reference)
 * [Usage](#usage)
 * [Troubleshooting](#troubleshooting)
+* [Advanced Usage](#advanced-usage)
 * [Contributing](#contributing)
 * [License](#license)
 
 ## Overview
 
-This system provides direct communication with the NDI Aurora electromagnetic tracking system through a fully containerized ROS2 environment. The package enables:
+This branch provides a complete Docker containerized setup for the NDI Aurora tracking system. Everything you need is included:
 
-* Real-time Aurora electromagnetic position tracking
-* Multi-sensor support (up to 4 sensors)
-* Support for autoconfigured tools (NDI pens with internal ROM)
-* TF2 transform broadcasting for robot/surgical navigation
-* Configurable tracking parameters via YAML files
-* Data filtering and quality monitoring
-* Robust error handling and automatic reconnection
+* Pre-configured Docker environment with ROS2 Humble
+* Automatic Aurora driver installation from the `ros2-package` branch
+* Example configuration files
+* GUI support for RViz2 and rqt tools
+* Volume mounting for development and data persistence
 
-The entire system is containerized using Docker for easy deployment and reproducibility.
+**Perfect for:**
+- Quick testing and evaluation
+- Development without installing ROS2 locally
+- Consistent environments across different machines
+- Easy deployment in production
+
+## Branches
+
+This repository contains different branches for different use cases:
+
+* **`ros2-package`**: Pure ROS2 package - use this to integrate Aurora tracking into your existing ROS2 workspace
+* **`docker-setup`** (current): Complete Docker containerized setup - use this for quick start and testing
+
+**🔧 Want just the ROS2 package?** Switch to the `ros2-package` branch:
+
+```bash
+git checkout ros2-package
+```
 
 ## Prerequisites
 
@@ -39,228 +52,141 @@ The entire system is containerized using Docker for easy deployment and reproduc
 * NDI Aurora electromagnetic tracking system
 * USB serial connection (typically `/dev/ttyUSB0`)
 
-## Installation
+### Install Docker
 
-1. Clone the repository:
-
-```bash
-git clone https://github.com/yourusername/aurora-ndi-ros2-docker.git
-cd aurora-ndi-ros2-docker
-```
-
-2. Build the Docker image:
+If you don't have Docker installed:
 
 ```bash
-docker build -t aurora_ndi_ros2:latest .
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Add your user to docker group (avoid using sudo)
+sudo usermod -aG docker $USER
+
+# Install Docker Compose
+sudo apt-get update
+sudo apt-get install docker-compose-plugin
+
+# Log out and log back in for changes to take effect
 ```
 
-3. Configure X11 for GUI tools (RViz2, rqt):
+## Quick Start
+
+### 1. Clone this branch
+
+```bash
+git clone -b docker-setup https://github.com/eddrive/aurora_ndi_ros2_driver.git
+cd aurora_ndi_ros2_driver
+```
+
+### 2. Configure X11 for GUI tools (RViz2, rqt)
 
 ```bash
 xhost +local:root
 ```
 
-## Quick Start
+### 3. Configure your Aurora sensor
 
-1. Start the container:
+Edit `config/aurora_config.yaml` to match your hardware setup. See [Configuration](#configuration) section below.
+
+### 4. Build and start the container
 
 ```bash
-docker compose up
+docker compose up --build
 ```
 
-2. Open an additional shell in the container:
+The Aurora node will start automatically!
+
+### 5. Access the container (optional)
+
+Open a new terminal and run:
 
 ```bash
 docker exec -it aurora_ndi_tracker bash
 ```
 
-3. The Aurora node starts automatically via the entrypoint script
+Now you can use ROS2 commands, launch RViz2, etc.
 
-## ROS2 Package
+## Docker Setup
 
-The system operates within a ROS2 Humble environment and publishes the following coordinate frames:
-
-* `aurora_base`: World reference frame (Aurora base station)
-* `sensor0`, `sensor1`, ... : Aurora sensor tracking frames (tools being tracked)
-
-### TF Tree Structure
+### Project Structure
 
 ```
-world
-  └── aurora_base
-        ├── endo_aurora_sensor0
-        ├── endo_aurora_sensor1
-        └── endo_aurora_pen
+aurora_ndi_ros2_driver/ (docker-setup branch)
+├── Dockerfile                      # Container definition
+├── docker-compose.yml              # Service orchestration
+├── entrypoint.sh                   # Container startup script
+├── config/
+│   └── aurora_config.yaml          # Aurora configuration
+├── bags/                           # ROS2 bag recordings (optional)
+└── README.md                       # This file
 ```
 
-### Published Topics
+### Dockerfile Overview
 
-* `/aurora_data_sensor0` (aurora_pub/msg/AuroraData)
-* `/aurora_data_sensor1` (aurora_pub/msg/AuroraData)
-* `/aurora_data_pen` (aurora_pub/msg/AuroraData)
+The Docker image includes:
+- Ubuntu 22.04 base
+- ROS2 Humble Desktop (full installation)
+- Aurora NDI driver (cloned from `ros2-package` branch)
+- Visualization tools (RViz2, rqt)
+- Development tools (nano, vim, htop, tree)
+- Pre-built workspace ready to use
 
-Message structure:
+### Docker Compose Configuration
 
-```
-std_msgs/Header header
-geometry_msgs/Point position      # Position in mm
-geometry_msgs/Quaternion orientation
-float64 error
-bool visible
-uint16 port_handle
-```
+The `docker-compose.yml` defines:
+- Container name: `aurora_ndi_tracker`
+- Network mode: `host` (for ROS2 communication)
+- USB device mapping: `/dev/ttyUSB0`
+- Display forwarding for GUI tools
+- Volume mounts for configuration and data
 
 ## Configuration
 
-The Aurora driver is configured through YAML parameter files located in `config/`. The driver supports multiple sensors and can handle both regular sensors (with external ROM files) and autoconfigured tools like NDI pens (with internal ROM).
+### Aurora Configuration File
+
+The main configuration is in `config/aurora_config.yaml`. This file is mounted into the container at runtime, so you can edit it without rebuilding.
+
+**Location on host:** `./config/aurora_config.yaml`  
+**Location in container:** `/workspace/config/aurora_config.yaml`
 
 ### Multi-Sensor Setup
 
-The driver supports up to 4 sensors simultaneously. Each sensor can be:
-- A **regular sensor** that requires an external ROM file
-- An **autoconfigured tool** (e.g., NDI pen) that has an internal ROM
+The driver supports up to 4 sensors. Each sensor can be:
+- A **regular sensor** with external ROM file
+- An **autoconfigured tool** (NDI pen) with internal ROM
 
-#### Configuration Logic
+#### Configuration Examples
 
-```yaml
-num_sensors: <total number of sensors>
-tool_rom_files: [<ROM files for regular sensors only>]
-port_handles: [<all port handles>]
-port_handles_autoconfig: [<which ports are autoconfigured>]
-```
-
-**Important**: The number of ROM files must equal: `num_sensors - number of autoconfigured ports`
-
-### Autoconfigured Tools (NDI Pens)
-
-NDI pens and similar tools have built-in ROM data and don't need external ROM files. To use them:
-
-1. Add the port handle to `port_handles` array
-2. Add the same port handle to `port_handles_autoconfig` array
-3. Do NOT include a ROM file for this port
-
-**Example**: Single NDI pen on port 0A:
-
-```yaml
-num_sensors: 1
-tool_rom_files: [""]  # Empty placeholder (no ROM needed)
-port_handles: ["0A"]
-port_handles_autoconfig: ["0A"]
-```
-
-### Parameter Reference
-
-#### Serial Communication
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `serial_port` | string | `/dev/ttyUSB0` | Serial port device for Aurora connection |
-| `baud_rate` | int | `230400` | Communication baud rate. Supported: 9600, 19200, 38400, 57600, 115200, 230400 |
-| `serial_timeout_sec` | double | `2.0` | Timeout for serial communication operations (seconds) |
-
-#### Multi-Sensor Configuration
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `num_sensors` | int | `1` | Total number of sensors (1-4), including both regular and autoconfigured |
-| `tool_rom_files` | string[] | `["...6DOF.rom"]` | ROM files for regular sensors. Use `[""]` if all sensors are autoconfigured. Length must be `num_sensors - num_autoconfig` |
-| `port_handles` | string[] | `["0A"]` | Port handles for ALL sensors (hex: 0A, 0B, 0C, 0D). Must have `num_sensors` entries |
-| `port_handles_autoconfig` | string[] | `[]` | Port handles for autoconfigured tools (NDI pens). Use `[""]` if no autoconfigured tools |
-| `topic_names` | string[] | `["/aurora_data_sensor0"]` | ROS2 topic names for each sensor. Must have `num_sensors` entries |
-| `child_frame_names` | string[] | `["endo_aurora_sensor0"]` | TF frame names for each sensor. Must have `num_sensors` entries |
-
-#### Aurora System Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `reference_port` | string | `"10"` | Reference port handle for tracking system |
-| `track_reply_option` | int | `80` | Tracking reply option: `0` (no reset) or `80` (reset frame counter) |
-| `measure_reply_option` | string | `"0001"` | Measurement reply option bitmask:<br>- `0001`: Transform data<br>- `0002`: Tool & marker info<br>- `0004`: 3D pos of 1 active marker<br>- `0008`: 3D pos of markers on tool<br>- `0800`: Transform not normally reported<br>- `1000`: 3D pos of stray passive markers |
-| `status_reply` | bool | `true` | Include status information in tracking replies |
-
-#### ROS Publishing Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `frame_id` | string | `"aurora_base"` | Parent frame ID for all sensor transforms |
-| `publish_rate_hz` | double | `40.0` | Publishing frequency for data and transforms (Hz) |
-| `queue_size` | int | `10` | ROS2 publisher queue size |
-
-#### Data Processing
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `enable_data_filtering` | bool | `true` | Enable moving average filter for position and orientation |
-| `filter_window_size` | int | `4` | Number of samples for moving average filter |
-| `position_scale_factor` | double | `1.0` | Scale factor applied to position measurements |
-| `orientation_scale_factor` | double | `1.0` | Scale factor applied to orientation quaternions |
-| `error_scale_factor` | double | `1.0` | Scale factor applied to error measurements |
-
-#### Connection and Timeouts
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `command_timeout_sec` | double | `2.0` | Timeout for Aurora command responses (seconds) |
-| `max_connection_retries` | int | `3` | Maximum number of connection retry attempts |
-| `retry_delay_sec` | double | `2.0` | Delay between connection retry attempts (seconds) |
-
-#### Logging
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `debug_mode` | bool | `false` | Enable verbose debug logging |
-| `log_raw_data` | bool | `false` | Log raw Aurora measurement data |
-
-### Configuration Examples
-
-#### Example 1: Single Sensor with ROM File
-
+**Single sensor with ROM:**
 ```yaml
 num_sensors: 1
 tool_rom_files: 
-  - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"
+  - "/workspace/src/aurora_ndi_ros2_driver/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"
 port_handles: ["0A"]
-port_handles_autoconfig: [""]  # No autoconfigured sensors
+port_handles_autoconfig: [""]
 topic_names: ["/aurora_data_sensor0"]
 child_frame_names: ["endo_aurora_sensor0"]
 ```
 
-#### Example 2: Single NDI Pen (Autoconfigured)
-
+**Single NDI pen (autoconfigured):**
 ```yaml
 num_sensors: 1
 tool_rom_files: [""]  # Empty - pen has internal ROM
 port_handles: ["0A"]
-port_handles_autoconfig: ["0A"]  # Port 0A is autoconfigured
+port_handles_autoconfig: ["0A"]
 topic_names: ["/aurora_data_pen"]
 child_frame_names: ["endo_aurora_pen"]
 ```
 
-#### Example 3: Two Regular Sensors
-
+**Mixed: 1 sensor + 1 pen:**
 ```yaml
 num_sensors: 2
 tool_rom_files:
-  - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"
-  - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"
+  - "/workspace/src/aurora_ndi_ros2_driver/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"
 port_handles: ["0A", "0B"]
-port_handles_autoconfig: [""]  # No autoconfigured sensors
-topic_names: 
-  - "/aurora_data_sensor0"
-  - "/aurora_data_sensor1"
-child_frame_names:
-  - "endo_aurora_sensor0"
-  - "endo_aurora_sensor1"
-```
-
-#### Example 4: Mixed Configuration (1 Sensor + 1 Pen)
-
-```yaml
-num_sensors: 2
-tool_rom_files:
-  - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # Only for 0A
-port_handles: ["0A", "0B"]  # Both ports
-port_handles_autoconfig: ["0B"]  # Only 0B is autoconfigured
+port_handles_autoconfig: ["0B"]
 topic_names:
   - "/aurora_data_sensor0"
   - "/aurora_data_pen"
@@ -269,189 +195,292 @@ child_frame_names:
   - "endo_aurora_pen"
 ```
 
-#### Example 5: Multiple Sensors with Multiple Pens
+### Key Parameters
 
-```yaml
-num_sensors: 4
-tool_rom_files:
-  - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # For 0A
-  - "/workspace/src/aurora_pub/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # For 0B
-port_handles: ["0A", "0B", "0C", "0D"]
-port_handles_autoconfig: ["0C", "0D"]  # Ports 0C and 0D are pens
-topic_names:
-  - "/aurora_data_sensor0"
-  - "/aurora_data_sensor1"
-  - "/aurora_data_pen1"
-  - "/aurora_data_pen2"
-child_frame_names:
-  - "endo_aurora_sensor0"
-  - "endo_aurora_sensor1"
-  - "endo_aurora_pen1"
-  - "endo_aurora_pen2"
-```
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `serial_port` | `/dev/ttyUSB0` | USB serial device |
+| `num_sensors` | `1` | Total number of sensors (1-4) |
+| `publish_rate_hz` | `40.0` | Publishing frequency |
+| `enable_data_filtering` | `true` | Enable moving average filter |
+| `debug_mode` | `false` | Enable verbose logging |
+
+For complete parameter reference, see the [`ros2-package`](https://github.com/eddrive/aurora_ndi_ros2_driver/tree/ros2-package) branch README.
 
 ## Usage
 
-### Running Aurora Tracking
+### Starting the System
 
-The Aurora node is launched automatically when the container starts. To manually control it:
-
-Launch Aurora tracking:
-
+Start the container (builds automatically on first run):
 ```bash
-ros2 launch aurora_pub aurora_pub.launch.py
+docker compose up
 ```
 
-Run the node directly:
-
+Start in detached mode (background):
 ```bash
-ros2 run aurora_pub aurora_publisher_node
+docker compose up -d
 ```
 
-### Visualization
+### Accessing the Container
 
-Visualize the coordinate frames and transforms using RViz2:
-
+Open a shell inside the running container:
 ```bash
-ros2 run rviz2 rviz2
+docker exec -it aurora_ndi_tracker bash
 ```
 
-Add the TF display plugin to see the `aurora_base` → `sensor` transforms.
+### ROS2 Commands
 
-### Monitoring Data
+Inside the container, you can use all ROS2 commands:
 
-View published Aurora data:
-
-```bash
-ros2 topic echo /aurora_data_sensor0
-```
-
-Check TF transforms:
-
-```bash
-ros2 run tf2_ros tf2_echo aurora_base endo_aurora_sensor0
-```
-
-Visualize TF tree:
-
-```bash
-ros2 run rqt_tf_tree rqt_tf_tree
-```
-
-List all available topics:
-
+**List topics:**
 ```bash
 ros2 topic list
 ```
 
+**Echo Aurora data:**
+```bash
+ros2 topic echo /aurora_data_sensor0
+```
+
+**Check TF transforms:**
+```bash
+ros2 run tf2_ros tf2_echo aurora_base endo_aurora_sensor0
+```
+
+**View TF tree:**
+```bash
+ros2 run rqt_tf_tree rqt_tf_tree
+```
+
+### Visualization
+
+Launch RViz2 from inside the container:
+```bash
+ros2 run rviz2 rviz2
+```
+
+Launch rqt image view:
+```bash
+ros2 run rqt_image_view rqt_image_view
+```
+
+### Stopping the System
+
+Stop the container:
+```bash
+docker compose down
+```
+
+Stop and remove all data:
+```bash
+docker compose down -v
+```
+
 ## Troubleshooting
 
-### Aurora Device Not Found
+### Container Won't Start
 
-If you get connection errors:
+**Error: "Cannot connect to the Docker daemon"**
 
-1. Check device connection:
+Solution:
+```bash
+sudo systemctl start docker
+sudo usermod -aG docker $USER
+# Log out and back in
+```
 
+**Error: "device not found: /dev/ttyUSB0"**
+
+Solution:
+1. Check if device exists:
 ```bash
 ls -l /dev/ttyUSB*
 ```
 
-2. Verify permissions:
+2. Ensure Aurora is connected and powered on
 
+3. Update `docker-compose.yml` with correct device path:
+```yaml
+devices:
+  - /dev/ttyUSB1:/dev/ttyUSB0  # Map USB1 to USB0 in container
+```
+
+### GUI Applications Not Working
+
+**Error: "cannot open display"**
+
+Solution:
 ```bash
+# Allow Docker to access X server
+xhost +local:root
+
+# Or more secure - allow only specific container
+xhost +local:docker
+```
+
+For permanent solution, add to `~/.bashrc`:
+```bash
+xhost +local:root
+```
+
+### Aurora Device Permissions
+
+**Error: "Permission denied: /dev/ttyUSB0"**
+
+Solution:
+```bash
+# On host machine
 sudo chmod 666 /dev/ttyUSB0
 ```
 
-3. Check if device is mapped in compose:
+Or add your user to dialout group:
+```bash
+sudo usermod -a -G dialout $USER
+# Log out and back in
+```
 
+### Configuration Not Loading
+
+**Problem:** Changes to config file not reflected
+
+Solution:
+The config file is mounted as a volume, so changes should be immediate. If not:
+
+1. Restart the container:
+```bash
+docker compose restart
+```
+
+2. Check the mounted path:
+```bash
+docker exec -it aurora_ndi_tracker ls -la /workspace/config/
+```
+
+### Rebuild After Changes
+
+If you modify the Dockerfile or need a clean build:
+
+```bash
+# Stop and remove container
+docker compose down
+
+# Rebuild from scratch
+docker compose build --no-cache
+
+# Start fresh
+docker compose up
+```
+
+### View Container Logs
+
+See what's happening inside:
+```bash
+docker compose logs -f
+```
+
+View only Aurora node logs:
+```bash
+docker exec -it aurora_ndi_tracker bash
+ros2 topic echo /rosout
+```
+
+## Advanced Usage
+
+### Custom ROM Files
+
+To use your own ROM files:
+
+1. Create a `rom/` directory in this folder
+2. Add your ROM files
+3. Update `docker-compose.yml`:
+```yaml
+volumes:
+  - ./rom:/workspace/custom_rom:ro
+```
+
+4. Update `config/aurora_config.yaml`:
+```yaml
+tool_rom_files:
+  - "/workspace/custom_rom/your_sensor.rom"
+```
+
+### Recording Data
+
+Mount a directory for ROS2 bags:
+
+```yaml
+volumes:
+  - ./bags:/workspace/bags
+```
+
+Inside container:
+```bash
+cd /workspace/bags
+ros2 bag record /aurora_data_sensor0 /tf
+```
+
+### Development Workflow
+
+For active development on the driver:
+
+1. Clone the `ros2-package` branch locally
+2. Mount it as a volume in `docker-compose.yml`:
+```yaml
+volumes:
+  - /path/to/local/aurora_ndi_ros2_driver:/workspace/src/aurora_ndi_ros2_driver
+```
+
+3. Rebuild inside container when you make changes:
+```bash
+docker exec -it aurora_ndi_tracker bash
+cd /workspace
+colcon build --packages-select aurora_ndi_ros2_driver
+source install/setup.bash
+```
+
+### Using Different USB Device
+
+If your Aurora is on a different USB port:
+
+Edit `docker-compose.yml`:
 ```yaml
 devices:
-  - /dev/ttyUSB0:/dev/ttyUSB0
+  - /dev/ttyUSB1:/dev/ttyUSB0
 ```
 
-### No TF Data Published
-
-1. Verify Aurora tracking is active:
-
-```bash
-ros2 topic list | grep aurora
-```
-
-2. Check node status:
-
-```bash
-ros2 node list
-ros2 node info /aurora_publisher_node
-```
-
-3. Verify sensor visibility in published data:
-
-```bash
-ros2 topic echo /aurora_data_sensor0 --field visible
-```
-
-### Configuration Errors
-
-#### Error: "tool_rom_files size doesn't match expected"
-
-**Cause**: Mismatch between ROM files and sensor configuration.
-
-**Solution**: Ensure `tool_rom_files` length equals `num_sensors - num_autoconfig`:
-
+Or update `config/aurora_config.yaml`:
 ```yaml
-# For 2 sensors where 1 is autoconfigured:
-num_sensors: 2
-tool_rom_files: ["sensor.rom"]  # Only 1 ROM file
-port_handles_autoconfig: ["0B"]  # 1 autoconfigured
+serial_port: "/dev/ttyUSB1"
 ```
 
-#### Error: "Autoconfig port 'XX' not found in port_handles list"
+### Multiple Containers
 
-**Cause**: Port listed in `port_handles_autoconfig` is not in `port_handles`.
+To run multiple Aurora systems simultaneously:
 
-**Solution**: Ensure all autoconfigured ports are also in the main port list:
-
+1. Copy this directory
+2. Rename the service in `docker-compose.yml`:
 ```yaml
-port_handles: ["0A", "0B"]  # Must include ALL ports
-port_handles_autoconfig: ["0B"]  # Subset of port_handles
+services:
+  aurora_tracker_2:
+    container_name: aurora_ndi_tracker_2
 ```
 
-#### Error: "Failed to initialize port handles"
-
-**Cause**: Aurora hardware cannot initialize the specified ports.
-
-**Solution**: 
-1. Check physical connections to Aurora
-2. Verify correct ROM files are specified
-3. Ensure ports are not already in use
-4. Check Aurora system status LEDs
-
-### Performance Issues
-
-If tracking is slow or laggy:
-
-1. Reduce publish rate:
-
-```yaml
-publish_rate_hz: 20.0  # Instead of 40.0
-```
-
-2. Disable filtering:
-
-```yaml
-enable_data_filtering: false
-```
-
-3. Reduce filter window:
-
-```yaml
-filter_window_size: 2  # Instead of 4
-```
+3. Map different USB devices and ports
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Found a bug or want to improve the Docker setup?
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## License
 
 Property of Edoardo Guida, student at Politecnico di Milano, developed at NEARlab
+
+---
+
+**Need the pure ROS2 package?** Check out the [`ros2-package`](https://github.com/eddrive/aurora_ndi_ros2_driver/tree/ros2-package) branch for installation in your existing ROS2 workspace.
