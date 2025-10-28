@@ -22,7 +22,7 @@ def generate_launch_description():
     config_file_arg = DeclareLaunchArgument(
         'config_file',
         default_value=PathJoinSubstitution([
-            FindPackageShare('aurora_pub'),
+            FindPackageShare('aurora_ndi_ros2_driver'),
             'config',
             'aurora_config.yaml'
         ]),
@@ -68,7 +68,7 @@ def generate_launch_description():
     # =============================================================================
     
     aurora_publisher_node = Node(
-        package='aurora_pub',
+        package='aurora_ndi_ros2_driver',
         executable='aurora_publisher_node',
         name='aurora_publisher_node',
         namespace=LaunchConfiguration('namespace'),
@@ -111,7 +111,7 @@ def generate_launch_description():
         name='aurora_rviz',
         arguments=[
             '-d', PathJoinSubstitution([
-                FindPackageShare('aurora_pub'),
+                FindPackageShare('aurora_ndi_ros2_driver'),
                 'config',
                 'aurora_viz.rviz'
             ])

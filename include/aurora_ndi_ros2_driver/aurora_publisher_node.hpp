@@ -4,7 +4,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <tf2_ros/transform_broadcaster.h>
-#include <aurora_pub/msg/aurora_data.hpp>
+#include <aurora_ndi_ros2_driver/msg/aurora_data.hpp>
 
 #include <memory>
 #include <string>
@@ -21,7 +21,7 @@ namespace AuroraDriver {
     struct ToolPose;
 }
 
-namespace aurora_pub
+namespace aurora_ndi_ros2_driver
 {
 
 class AuroraPublisherNode : public rclcpp::Node
@@ -146,7 +146,7 @@ private:
     std::unique_ptr<AuroraDriver::ndi_aurora> aurora_driver_;
     
     // ROS publishers (one per sensor)
-    std::vector<rclcpp::Publisher<aurora_pub::msg::AuroraData>::SharedPtr> aurora_data_publishers_;
+    std::vector<rclcpp::Publisher<aurora_ndi_ros2_driver::msg::AuroraData>::SharedPtr> aurora_data_publishers_;
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
     
     // Timers
@@ -164,6 +164,6 @@ private:
     std::vector<std::deque<AuroraData>> data_buffers_;  // For filtering, one buffer per sensor
 };
 
-} // namespace aurora_pub
+} // namespace aurora_ndi_ros2_driver
 
 #endif // AURORA_PUBLISHER_NODE_HPP

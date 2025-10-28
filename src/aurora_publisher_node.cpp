@@ -1,6 +1,6 @@
-#include "aurora_pub/aurora_publisher_node.hpp"
-#include "aurora_pub/aurora_utils.hpp"
-#include "aurora_pub/ndi_aurora_ros2.hpp" 
+#include "aurora_ndi_ros2_driver/aurora_publisher_node.hpp"
+#include "aurora_ndi_ros2_driver/aurora_utils.hpp"
+#include "aurora_ndi_ros2_driver/ndi_aurora_ros2.hpp" 
 
 #include <iostream>
 #include <iomanip>
