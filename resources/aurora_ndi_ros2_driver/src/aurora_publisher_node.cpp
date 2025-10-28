@@ -602,6 +602,10 @@ void AuroraPublisherNode::aurora_data_publish_callback()
         // ALWAYS PUBLISH THE AURORA MESSAGE (even when not visible)
         auto aurora_msg = aurora_ndi_ros2_driver::msg::AuroraData();
         
+        aurora_msg.header.stamp = this->now();
+        aurora_msg.header.frame_id = params_.child_frame_names[sensor_idx];  
+        // ===============================================
+        
         // Keep original position data in millimeters (even if invalid)
         aurora_msg.position.x = current_data.position[0];  // mm
         aurora_msg.position.y = current_data.position[1];  // mm
