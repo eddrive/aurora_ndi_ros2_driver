@@ -224,12 +224,15 @@ namespace AuroraDriver
         bool initToolVector(const int& noTools);
         bool initToolVector();
         bool getNoToolsReady(int& noToolsReady);
+        // Versione completa con autoconfig support
         bool initPortHandleWT(const std::vector<std::string>& toolDefinitions, 
-                             const std::vector<std::string>& toolDefPortHandles, 
-                             const std::vector<std::string>& defaultToolsConfiguration, 
-                             const std::string& refPortHandle);
+                      const std::vector<std::string>& toolDefPortHandles, 
+                      const std::vector<std::string>& portHandlesAutoconfig,
+                      const std::string& refPortHandle);
+
+        // Versione semplificata (backward compatibility)
         bool initPortHandleWT(const std::vector<std::string>& toolDefinitions, 
-                             const std::vector<std::string>& toolDefPortHandles);
+                      const std::vector<std::string>& toolDefPortHandles);
         bool startDiagnosticMode();
         bool stopDiagnosticMode();
         bool startTrackingMode(const int& trackReplyOption);
