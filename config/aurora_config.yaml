@@ -66,11 +66,35 @@ aurora_publisher_node:
     # =========================================================================
     # Data Processing
     # =========================================================================
-    enable_data_filtering: true
+    enable_data_filtering: false
     filter_window_size: 4
     position_scale_factor: 1.0
     orientation_scale_factor: 1.0
     error_scale_factor: 1.0
+
+    # =========================================================================
+    # Outlier Detection (for noise rejection without temporal delay)
+    # =========================================================================
+    # Enable outlier detection to reject physically implausible measurements
+    # This does NOT introduce delay - just validates each sample independently
+    enable_outlier_detection: true
+
+    # Maximum allowed position jump between consecutive samples (mm)
+    # For medical instruments (catheter, endoscope) moving at ~500mm/s @ 40Hz:
+    # max_jump = max_speed / sample_rate = 500mm/s / 40Hz = 12.5mm
+    # Conservative value: 20mm allows for fast movements + some margin
+    max_position_jump_mm: 20.0
+
+    # Maximum allowed orientation change between consecutive samples (degrees)
+    # For medical instruments with fast rotation @ 40Hz:
+    # max_rotation_speed ~1000°/s → 1000°/s / 40Hz = 25°/sample
+    # Conservative value: 30° allows for fast rotations + margin
+    max_orientation_change_deg: 30.0
+
+    # Maximum acceptable RMS error from Aurora (mm)
+    # Aurora typical error: 0.5-1.5mm in good conditions
+    # Reject samples with error > this threshold (likely bad tracking)
+    max_acceptable_error_mm: 3.0
     
     # =========================================================================
     # Connection and Timeouts

@@ -1,25 +1,19 @@
-// include/aurora_ndi_ros2_driver/ndi_aurora_ros2.hpp
 #pragma once
 
-//Include system headers
-#include <fcntl.h> // File control definitions
-#include <termios.h> // POSIX terminal control definitions
+#include <fcntl.h>
+#include <termios.h>
 #include <cstring>
 #include <iostream>
 #include <math.h>
 #include <sstream>
-#include <cstdio> // Standard input/output definitions
-#include <unistd.h> // UNIX standard function definitions
+#include <cstdio>
+#include <unistd.h>
 #include <vector>
 
 typedef unsigned char uchar;
 
 namespace AuroraDriver
 {
-    /**
-     * @struct ToolPose
-     * @brief Structure containing the position and orientation (quaternion) of a tool
-     */
     struct ToolPose
     {
         double qx;
@@ -38,28 +32,24 @@ namespace AuroraDriver
         {}
     };
 
-    ///NDI Aurora controller library class for ROS2
     class ndi_aurora
     {
       private:
-        // Port and communication
         const char* _port;
-        termios oldtio; 
+        termios oldtio;
         struct termios newtio_struct;
-        struct termios *newtio; 
-        int fd; 
+        struct termios *newtio;
+        int fd;
         int fd_global;
         speed_t baudrate;
-        
-        // Message buffers
-        char returnMessage[255]; 
+
+        char returnMessage[255];
         char returnMessageCopy[255];
-        char buffer[255];  
-        char *bufptr;      
+        char buffer[255];
+        char *bufptr;
         size_t nmbBytesRead;
         const char *Output;
-        
-        // Port handle management
+
         char portHandle[2];
         char sign_refPortHandle[2];
         int PHint, PHint2, PHint3;
@@ -69,11 +59,9 @@ namespace AuroraDriver
         bool bDuplicate, bAutoConfig;
         char currentPrio;
         std::vector<std::string> activePHs;
-        
-        // Loop counters
+
         int i, j, k, cv4;
-        
-        // Message handling
+
         std::string command;
         std::string message2send, errorMessage, missingMessage, warningMessage, replyOptionStr;
         std::ostringstream tempInt2string;
@@ -83,51 +71,44 @@ namespace AuroraDriver
         int intFromChar;
         char char2convert;
         int int2convert;
-        
-        // Tool definition files
-        char* toolDefinition; 
+
+        char* toolDefinition;
         unsigned char toolDefData[1024];
         int nBytes;
         FILE *romFile;
-        char tooldefCommand[256]; 
+        char tooldefCommand[256];
         char* romFileName;
-        
-        // Tracking and measurement
+
         int trackReplyOption;
         std::string measureReplyOption;
         int handleNumber, systemStatus;
         unsigned int replyOptionInt;
         int replyOption, messageLength;
-        std::string tempString; 
+        std::string tempString;
         char tempChar;
         int startIndex;
         int checkReference, realHandleNumber, PHcounter;
         int noSM, outVolInt;
-        
-        // Tool pose data
+
         ToolPose toolPose;
         std::vector<ToolPose> allToolPose;
         std::vector<int> portIndexes;
         std::vector<int> visibleTools;
-        
-        // Quaternion and position parsing
+
         int tempQuaternion;
         double quaternion0, quaternionX, quaternionY, quaternionZ;
         double positionX, positionY, positionZ, errorRMS;
         int frameNumber, tempFno;
         std::string newLineCmd;
         bool statusReply;
-        
-        // Constants for message parsing
+
         const int CLcr, CLcrc, CLnoPH, CLPHno, CLPHstat, CLstatus;
         const int CLquaternion, CLposition, CLerrorRMS, CLlf;
         const int CLportStatus, CLframeNo, CLnoSM;
         const int CLOutVol, CLSM;
-        
-        // Flags
+
         bool sendF, readF, missingF, interpretOK, frameNoF, extraTransfo;
-        
-        // Private methods
+
         bool initSerial(const char *serialdev, struct termios *oldtio, int& fd);
         bool resetAurora(const int& fd, struct termios *oldtio);
         bool portHandleStatus(const int& replyOption, char (&returnMessage)[255]);
@@ -149,9 +130,8 @@ namespace AuroraDriver
         bool char2hex(const char& char2convert, int& intFromChar);
         bool string2int(const std::string& string2convert, unsigned int& intFromChar);
         bool string2hex(const std::string& string2convert, unsigned int& intFromChar);
-        
+
       public:
-        // Constructor with complete initialization list
         ndi_aurora(const char* port) : 
             _port(port),
             newtio(nullptr),
@@ -186,10 +166,9 @@ namespace AuroraDriver
             CLquaternion(6), CLposition(7), CLerrorRMS(6), CLlf(1),
             CLportStatus(8), CLframeNo(8), CLnoSM(2),
             CLOutVol(0), CLSM(0),
-            sendF(true), readF(false), missingF(false), interpretOK(false), 
+            sendF(true), readF(false), missingF(false), interpretOK(false),
             frameNoF(false), extraTransfo(false)
         {
-            // Initialize arrays
             memset(returnMessage, 0, sizeof(returnMessage));
             memset(returnMessageCopy, 0, sizeof(returnMessageCopy));
             memset(buffer, 0, sizeof(buffer));
@@ -200,17 +179,15 @@ namespace AuroraDriver
             memset(&oldtio, 0, sizeof(oldtio));
             memset(&newtio_struct, 0, sizeof(newtio_struct));
         }
-        
-        ~ndi_aurora() 
+
+        ~ndi_aurora()
         {
-            // Clean up if needed
             if (romFile) {
                 fclose(romFile);
                 romFile = nullptr;
             }
         }
-        
-        // Public methods
+
         bool startSerial();
         bool stopSerial();
         bool sendBeep();
@@ -224,20 +201,20 @@ namespace AuroraDriver
         bool initToolVector(const int& noTools);
         bool initToolVector();
         bool getNoToolsReady(int& noToolsReady);
-        bool initPortHandleWT(const std::vector<std::string>& toolDefinitions, 
-                             const std::vector<std::string>& toolDefPortHandles, 
-                             const std::vector<std::string>& defaultToolsConfiguration, 
+        bool initPortHandleWT(const std::vector<std::string>& toolDefinitions,
+                             const std::vector<std::string>& toolDefPortHandles,
+                             const std::vector<std::string>& defaultToolsConfiguration,
                              const std::string& refPortHandle);
-        bool initPortHandleWT(const std::vector<std::string>& toolDefinitions, 
+        bool initPortHandleWT(const std::vector<std::string>& toolDefinitions,
                              const std::vector<std::string>& toolDefPortHandles);
         bool startDiagnosticMode();
         bool stopDiagnosticMode();
         bool startTrackingMode(const int& trackReplyOption);
         bool stopTrackingMode();
-        bool measureTool(const std::string& measureReplyOption, 
-                        std::vector<ToolPose>& allToolPose, 
-                        const bool& statusReply, 
-                        std::vector<int>& portIndexes, 
+        bool measureTool(const std::string& measureReplyOption,
+                        std::vector<ToolPose>& allToolPose,
+                        const bool& statusReply,
+                        std::vector<int>& portIndexes,
                         std::vector<int>& visibleTools);
     };
 }

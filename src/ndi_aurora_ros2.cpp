@@ -1,5 +1,3 @@
-// src/ndi_aurora_ros2.cpp
-// Versione adattata per ROS2 - rimuove dipendenze Orocos
 #include "aurora_ndi_ros2_driver/ndi_aurora_ros2.hpp"
 #include <unistd.h>
 #include <iostream>
@@ -9,7 +7,6 @@
 
 namespace AuroraDriver
 {
-    /*set the communication speed and terminal properties*/
     bool ndi_aurora::initSerial(const char *serialdev, struct termios *oldtio, int& fd)
     {
         newtio = &newtio_struct;
@@ -21,7 +18,6 @@ namespace AuroraDriver
             return false;
         }
 
-        // save current port settings 
         tcgetattr(fd, oldtio); 
 
         //after power up, the camera will reset to 9600bps
@@ -54,13 +50,11 @@ namespace AuroraDriver
 
     bool ndi_aurora::startSerial()
     {
-        //open a connection
-        if (!initSerial(_port, &oldtio, fd)) return false; 
-        //send serial break and read it's response
+        if (!initSerial(_port, &oldtio, fd)) return false;
         tcsendbreak(fd, 0);
         if (!readMessage(fd, returnMessage)) return false;
         std::cout << "(ndi_aurora) returned message for serial break: " << returnMessage << "\n" << std::endl;
-            
+
         return true;
     }
     
@@ -97,9 +91,8 @@ namespace AuroraDriver
 
     bool ndi_aurora::readMessage(const int& fd, char (&msg)[255])
     {
-        // read characters into string buffer until we get a CR or NL
         bufptr = msg;
-        
+
         while ((nmbBytesRead = read(fd, bufptr, 1)) > 0)
         {
             bufptr += nmbBytesRead;
@@ -107,20 +100,16 @@ namespace AuroraDriver
             {
                 break;
             }
-        }   
+        }
 
-        // nul terminate the string 
         *bufptr = '\0';
         return true;
     }
 
     bool ndi_aurora::changeBaudRate(const int& BaudRate)
     {
-        //set return flag on true
         sendF = true;
 
-        //messages constructed for: 8 databits, no parity, one stop bit, no
-        //hardware handshaking! (last 4 digits in following messages)
         switch(BaudRate)
         {
             case 9600:
@@ -156,26 +145,22 @@ namespace AuroraDriver
             default:
                 std::cout << "(ndi_aurora) ERROR: " << BaudRate << " is not a supported baudrate!" << "\n" << std::endl;
                 return false;
-        }   
-        
-        //change baudrate on the camera
+        }
+
         Output = message2send.c_str();
         sendF = sendMessage(fd, Output, strlen(Output));
-        sendF = sendF && readMessage(fd, returnMessage);        
-        
-        //check returnMessage
+        sendF = sendF && readMessage(fd, returnMessage);
+
         if (strncmp(returnMessage, errorMessage.c_str(), errorMessage.length()) == 0)
         {
             std::cout << "(ndi_aurora) ERROR: could not change baudrate: " << returnMessage << "\n" << std::endl;
             return false;
         }
         std::cout << "(ndi_aurora) baudrate change request send to camera: successful?: " << sendF << " ,message returned: " << returnMessage << "\n" << std::endl;
-        
-        // Sleep, as advised by NDI doc
+
         usleep(500000);
 
-        //change baudrate on the pc
-        sendF = sendF && changePCBaudRate(_port, baudrate); 
+        sendF = sendF && changePCBaudRate(_port, baudrate);
         std::cout << "(ndi_aurora) baudrate change request send to PC: successful?: " << sendF << "\n" << std::endl;
  
         return sendF;
@@ -195,31 +180,27 @@ namespace AuroraDriver
         return true;
     }
 
-    //initialize the system (after setting up connection)
     bool ndi_aurora::initAurora()
     {
         sendF = true;
-        //send initialization command
         message2send = "INIT \r";
         Output = message2send.c_str();
         sendF = sendMessage(fd, Output, strlen(Output));
 
-        usleep(10000); // To make sure that communication is established when using high baud rates
+        usleep(10000);
 
-        sendF = sendF && readMessage(fd, returnMessage);        
-        
-        //check returnMessage
+        sendF = sendF && readMessage(fd, returnMessage);
+
         if (strncmp(returnMessage, errorMessage.c_str(), errorMessage.length()) == 0)
         {
             std::cout << "(ndi_aurora) ERROR: initialization Aurora failed " << returnMessage << "\n" << std::endl;
             return false;
         }
         std::cout << "(ndi_aurora) initialization of Aurora: successful?: " << sendF << " ,message returned: " << returnMessage << "\n" << std::endl;
-        
+
         return sendF;
     }
 
-    //reset terminal before quitting
     bool ndi_aurora::resetAurora(const int& fd, struct termios *oldtio)
     {
         tcflush(fd, TCIFLUSH);
@@ -228,11 +209,9 @@ namespace AuroraDriver
         return true;
     }
 
-    /*stop the continuous measurement mode*/
     bool ndi_aurora::stopAurora(const int& fd)
     {
-        (void)fd; // suppress unused parameter warning
-        // Aurora doesn't have a stop mechanism, so
+        (void)fd;
         noPortsEnabled = 0;
         activePHs.clear();
         allToolPose.clear();
