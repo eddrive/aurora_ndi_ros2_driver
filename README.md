@@ -21,10 +21,9 @@ A fully containerized ROS2 Humble environment for real-time electromagnetic trac
 This branch provides a complete Docker containerized setup for the NDI Aurora tracking system. Everything you need is included:
 
 * Pre-configured Docker environment with ROS2 Humble
-* Automatic Aurora driver installation from the `ros2-package` branch
-* Example configuration files
+* Automatic Aurora driver cloning and building from the `ros2-package` branch during Docker build
 * GUI support for RViz2 and rqt tools
-* Volume mounting for development and data persistence
+* Volume mounting for device access and X11 forwarding
 
 **Perfect for:**
 - Quick testing and evaluation
@@ -86,14 +85,20 @@ cd aurora_ndi_ros2_driver
 xhost +local:root
 ```
 
-### 3. Configure your Aurora sensor
+### 3. Build the Docker image
 
-Edit `config/aurora_config.yaml` to match your hardware setup. See [Configuration](#configuration) section below.
-
-### 4. Build and start the container
+Build the image with cache busting to ensure you get the latest driver code:
 
 ```bash
-docker compose up --build
+docker build --build-arg CACHEBUST=$(date +%s) -t aurora_ndi_tracker:latest .
+```
+
+**Note:** The `CACHEBUST` argument forces Docker to re-clone the latest version of the driver from the `ros2-package` branch.
+
+### 4. Start the container
+
+```bash
+docker compose up
 ```
 
 The Aurora node will start automatically!
@@ -114,24 +119,29 @@ Now you can use ROS2 commands, launch RViz2, etc.
 
 ```
 aurora_ndi_ros2_driver/ (docker-setup branch)
-├── Dockerfile                      # Container definition
+├── Dockerfile                      # Container definition with git clone
 ├── docker-compose.yml              # Service orchestration
 ├── entrypoint.sh                   # Container startup script
-├── config/
-│   └── aurora_config.yaml          # Aurora configuration
-├── bags/                           # ROS2 bag recordings (optional)
 └── README.md                       # This file
 ```
+
+**Note:** The Aurora driver package is automatically cloned from the `ros2-package` branch during the Docker build process. There is no local `resources/` or source code directory in this branch.
 
 ### Dockerfile Overview
 
 The Docker image includes:
 - Ubuntu 22.04 base
 - ROS2 Humble Desktop (full installation)
-- Aurora NDI driver (cloned from `ros2-package` branch)
+- Aurora NDI driver (automatically cloned from `ros2-package` branch during build)
 - Visualization tools (RViz2, rqt)
 - Development tools (nano, vim, htop, tree)
 - Pre-built workspace ready to use
+
+The build process:
+1. Installs all ROS2 dependencies
+2. Clones the latest driver code from GitHub (`ros2-package` branch)
+3. Builds the workspace with `colcon build`
+4. Creates a ready-to-run container
 
 ### Docker Compose Configuration
 
@@ -139,17 +149,26 @@ The `docker-compose.yml` defines:
 - Container name: `aurora_ndi_tracker`
 - Network mode: `host` (for ROS2 communication)
 - USB device mapping: `/dev/ttyUSB0`
-- Display forwarding for GUI tools
-- Volume mounts for configuration and data
+- Display forwarding for GUI tools (`DISPLAY` and X11 socket)
+- Privileged mode for full device access
 
 ## Configuration
 
-### Aurora Configuration File
+The Aurora driver configuration is built into the container from the `ros2-package` branch. The default configuration file is located at:
 
-The main configuration is in `config/aurora_config.yaml`. This file is mounted into the container at runtime, so you can edit it without rebuilding.
+**Location in container:** `/workspace/src/aurora_ndi_ros2_driver/config/aurora_config.yaml`
 
-**Location on host:** `./config/aurora_config.yaml`  
-**Location in container:** `/workspace/config/aurora_config.yaml`
+To modify the configuration, you have two options:
+
+**Option 1: Edit inside the container**
+```bash
+docker exec -it aurora_ndi_tracker bash
+nano /workspace/src/aurora_ndi_ros2_driver/config/aurora_config.yaml
+# Restart the node for changes to take effect
+```
+
+**Option 2: Rebuild with custom config**
+Fork the `ros2-package` branch, modify the config, and update the clone URL in the Dockerfile
 
 ### Multi-Sensor Setup
 
@@ -211,7 +230,13 @@ For complete parameter reference, see the [`ros2-package`](https://github.com/ed
 
 ### Starting the System
 
-Start the container (builds automatically on first run):
+**First time setup:**
+Build the Docker image first:
+```bash
+docker build --build-arg CACHEBUST=$(date +%s) -t aurora_ndi_tracker:latest .
+```
+
+Then start the container:
 ```bash
 docker compose up
 ```
@@ -344,30 +369,40 @@ sudo usermod -a -G dialout $USER
 **Problem:** Changes to config file not reflected
 
 Solution:
-The config file is mounted as a volume, so changes should be immediate. If not:
+The config file is inside the container. After editing it, restart the container:
 
-1. Restart the container:
 ```bash
 docker compose restart
 ```
 
-2. Check the mounted path:
+Or rebuild the image if you need the latest version from GitHub:
 ```bash
-docker exec -it aurora_ndi_tracker ls -la /workspace/config/
+docker build --build-arg CACHEBUST=$(date +%s) -t aurora_ndi_tracker:latest .
+docker compose up
 ```
 
 ### Rebuild After Changes
 
-If you modify the Dockerfile or need a clean build:
+**To get the latest driver code from GitHub:**
 
 ```bash
-# Stop and remove container
+# Stop container
 docker compose down
 
-# Rebuild from scratch
-docker compose build --no-cache
+# Rebuild with cache busting (forces re-clone)
+docker build --build-arg CACHEBUST=$(date +%s) -t aurora_ndi_tracker:latest .
 
 # Start fresh
+docker compose up
+```
+
+**For a complete clean rebuild:**
+
+```bash
+# Remove old image and rebuild from scratch
+docker compose down
+docker rmi aurora_ndi_tracker:latest
+docker build --no-cache --build-arg CACHEBUST=$(date +%s) -t aurora_ndi_tracker:latest .
 docker compose up
 ```
 
@@ -388,25 +423,23 @@ ros2 topic echo /rosout
 
 ### Custom ROM Files
 
-To use your own ROM files:
+To use your own ROM files, mount a volume in `docker-compose.yml`:
 
-1. Create a `rom/` directory in this folder
-2. Add your ROM files
-3. Update `docker-compose.yml`:
 ```yaml
 volumes:
   - ./rom:/workspace/custom_rom:ro
 ```
 
-4. Update `config/aurora_config.yaml`:
-```yaml
-tool_rom_files:
-  - "/workspace/custom_rom/your_sensor.rom"
+Then edit the config inside the container and reference your ROM files:
+```bash
+docker exec -it aurora_ndi_tracker bash
+nano /workspace/src/aurora_ndi_ros2_driver/config/aurora_config.yaml
+# Update tool_rom_files to point to /workspace/custom_rom/your_sensor.rom
 ```
 
 ### Recording Data
 
-Mount a directory for ROS2 bags:
+Mount a directory for ROS2 bags in `docker-compose.yml`:
 
 ```yaml
 volumes:
@@ -421,15 +454,25 @@ ros2 bag record /aurora_data_sensor0 /tf
 
 ### Development Workflow
 
-For active development on the driver:
+For active development on the driver, you have two options:
 
+**Option 1: Edit inside container**
+```bash
+docker exec -it aurora_ndi_tracker bash
+cd /workspace/src/aurora_ndi_ros2_driver
+# Make your changes
+cd /workspace
+colcon build --packages-select aurora_ndi_ros2_driver
+source install/setup.bash
+```
+
+**Option 2: Mount local development copy**
 1. Clone the `ros2-package` branch locally
-2. Mount it as a volume in `docker-compose.yml`:
+2. Add volume mount in `docker-compose.yml`:
 ```yaml
 volumes:
   - /path/to/local/aurora_ndi_ros2_driver:/workspace/src/aurora_ndi_ros2_driver
 ```
-
 3. Rebuild inside container when you make changes:
 ```bash
 docker exec -it aurora_ndi_tracker bash
@@ -438,19 +481,31 @@ colcon build --packages-select aurora_ndi_ros2_driver
 source install/setup.bash
 ```
 
-### Using Different USB Device
+### Getting Latest Updates
 
-If your Aurora is on a different USB port:
+To pull the latest driver code from GitHub:
 
-Edit `docker-compose.yml`:
-```yaml
-devices:
-  - /dev/ttyUSB1:/dev/ttyUSB0
+```bash
+docker build --build-arg CACHEBUST=$(date +%s) -t aurora_ndi_tracker:latest .
+docker compose up
 ```
 
-Or update `config/aurora_config.yaml`:
+The `CACHEBUST` argument ensures Docker re-clones the repository even if other layers are cached.
+
+### Using Different USB Device
+
+If your Aurora is on a different USB port, edit `docker-compose.yml`:
+
 ```yaml
-serial_port: "/dev/ttyUSB1"
+devices:
+  - /dev/ttyUSB1:/dev/ttyUSB0  # Maps host USB1 to container USB0
+```
+
+Or edit the config inside the container:
+```bash
+docker exec -it aurora_ndi_tracker bash
+nano /workspace/src/aurora_ndi_ros2_driver/config/aurora_config.yaml
+# Change serial_port to "/dev/ttyUSB1"
 ```
 
 ### Multiple Containers
