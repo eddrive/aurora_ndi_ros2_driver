@@ -489,11 +489,11 @@ void AuroraPublisherNode::read_thread_function()
             std::vector<int> port_indexes;
             std::vector<int> visible_tools;
 
-            // Capture timestamp BEFORE measurement to reduce drift
-            auto measurement_timestamp = this->now();
-
             if (aurora_driver_->measureTool(params_.measure_reply_option, poses,
                                           params_.status_reply, port_indexes, visible_tools)) {
+
+                // Capture timestamp immediately after successful measurement
+                auto measurement_timestamp = this->now();
 
                 auto parsed_data_multi = parse_aurora_data_multi(poses, port_indexes, visible_tools, measurement_timestamp);
 
