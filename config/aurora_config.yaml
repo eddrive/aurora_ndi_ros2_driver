@@ -77,7 +77,8 @@ aurora_publisher_node:
     # =========================================================================
     # Enable outlier detection to reject physically implausible measurements
     # This does NOT introduce delay - just validates each sample independently
-    enable_outlier_detection: true
+    # DISABLED for hand-eye calibration to ensure timestamp updates continuously
+    enable_outlier_detection: false
 
     # Maximum allowed position jump between consecutive samples (mm)
     # For medical instruments (catheter, endoscope) moving at ~500mm/s @ 40Hz:
