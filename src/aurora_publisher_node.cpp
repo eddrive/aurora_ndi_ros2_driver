@@ -495,6 +495,13 @@ void AuroraPublisherNode::read_thread_function()
                 // Capture timestamp immediately after successful measurement
                 auto measurement_timestamp = this->now();
 
+                static int success_count = 0;
+                if (++success_count % 100 == 0) {
+                    RCLCPP_INFO(this->get_logger(),
+                        "measureTool success count: %d, timestamp: %.6f",
+                        success_count, measurement_timestamp.seconds());
+                }
+
                 auto parsed_data_multi = parse_aurora_data_multi(poses, port_indexes, visible_tools, measurement_timestamp);
 
                 for (int sensor_idx = 0; sensor_idx < params_.num_sensors; ++sensor_idx) {
@@ -530,9 +537,8 @@ void AuroraPublisherNode::read_thread_function()
                     }
                 }
             } else {
-                if (params_.debug_mode) {
-                    RCLCPP_DEBUG(this->get_logger(), "measureTool returned false");
-                }
+                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                    "measureTool returned false - not updating timestamp");
             }
         }
         catch (const std::exception& e) {
