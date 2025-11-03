@@ -601,6 +601,13 @@ void AuroraPublisherNode::aurora_data_publish_callback()
         aurora_msg.header.stamp = current_data.ros_timestamp;
         aurora_msg.header.frame_id = params_.child_frame_names[sensor_idx];
 
+        static int publish_count = 0;
+        if (++publish_count % 100 == 0) {
+            RCLCPP_INFO(this->get_logger(),
+                "Publishing sensor %d: timestamp=%.6f, visible=%d",
+                sensor_idx, current_data.ros_timestamp.seconds(), current_data.visible);
+        }
+
         aurora_msg.position.x = current_data.position[0];
         aurora_msg.position.y = current_data.position[1];
         aurora_msg.position.z = current_data.position[2];
