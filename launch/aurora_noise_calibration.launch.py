@@ -17,9 +17,8 @@ def generate_launch_description():
     """
     Launch file for Aurora noise calibration.
 
-    This launch file starts:
-    1. Aurora publisher node (data acquisition)
-    2. Noise estimator node (statistical analysis)
+    This launch file starts only the noise estimator node.
+    Assumes that the Aurora publisher node is already running separately.
 
     The noise estimator collects data with the sensor stationary,
     computes noise statistics, and outputs recommended Kalman filter parameters.
@@ -28,16 +27,6 @@ def generate_launch_description():
     # =============================================================================
     # LAUNCH ARGUMENTS
     # =============================================================================
-
-    aurora_config_arg = DeclareLaunchArgument(
-        'aurora_config',
-        default_value=PathJoinSubstitution([
-            FindPackageShare('aurora_ndi_ros2_driver'),
-            'config',
-            'aurora_config.yaml'
-        ]),
-        description='Path to Aurora driver configuration YAML file'
-    )
 
     noise_config_arg = DeclareLaunchArgument(
         'noise_config',
@@ -69,25 +58,7 @@ def generate_launch_description():
     )
 
     # =============================================================================
-    # AURORA PUBLISHER NODE
-    # =============================================================================
-
-    aurora_publisher_node = Node(
-        package='aurora_ndi_ros2_driver',
-        executable='aurora_publisher_node',
-        name='aurora_publisher_node',
-        parameters=[LaunchConfiguration('aurora_config')],
-        arguments=[
-            '--ros-args',
-            '--log-level', LaunchConfiguration('log_level')
-        ],
-        output='screen',
-        emulate_tty=True,
-        respawn=False  # Don't respawn during calibration
-    )
-
-    # =============================================================================
-    # NOISE ESTIMATOR NODE (with slight delay to ensure Aurora is ready)
+    # NOISE ESTIMATOR NODE
     # =============================================================================
 
     noise_estimator_node = Node(
@@ -110,19 +81,12 @@ def generate_launch_description():
         respawn=False
     )
 
-    # Delay noise estimator start to allow Aurora to initialize
-    delayed_noise_estimator = TimerAction(
-        period=3.0,
-        actions=[noise_estimator_node]
-    )
-
     # =============================================================================
     # LAUNCH DESCRIPTION
     # =============================================================================
 
     return LaunchDescription([
         # Arguments
-        aurora_config_arg,
         noise_config_arg,
         output_file_arg,
         max_samples_arg,
@@ -134,6 +98,7 @@ def generate_launch_description():
         LogInfo(msg="     AURORA NOISE CALIBRATION"),
         LogInfo(msg="======================================================="),
         LogInfo(msg=""),
+        LogInfo(msg="IMPORTANT: Ensure Aurora publisher is already running!"),
         LogInfo(msg="IMPORTANT: Place the Aurora sensor in a STATIONARY position!"),
         LogInfo(msg=""),
         LogInfo(msg=["  - Collecting: ", LaunchConfiguration('max_samples'), " samples"]),
@@ -145,11 +110,8 @@ def generate_launch_description():
         LogInfo(msg="======================================================="),
         LogInfo(msg=""),
 
-        # Launch Aurora driver immediately
-        aurora_publisher_node,
-
-        # Launch noise estimator after 3 seconds delay
-        delayed_noise_estimator,
+        # Launch noise estimator node
+        noise_estimator_node,
 
         # Completion message
         LogInfo(msg="Noise calibration launch sequence complete!"),
