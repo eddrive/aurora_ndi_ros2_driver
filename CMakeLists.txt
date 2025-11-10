@@ -67,8 +67,25 @@ ament_target_dependencies(aurora_publisher_node
 rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} "rosidl_typesupport_cpp")
 target_link_libraries(aurora_publisher_node "${cpp_typesupport_target}")
 
+# Create noise estimator executable
+add_executable(noise_estimator_node
+  src/noise_estimator_node.cpp
+)
+
+# Add ament dependencies to noise estimator
+ament_target_dependencies(noise_estimator_node
+  rclcpp
+  geometry_msgs
+  std_msgs
+)
+
+# Link custom message interfaces to noise estimator
+target_link_libraries(noise_estimator_node "${cpp_typesupport_target}")
+
 # Install targets
-install(TARGETS aurora_publisher_node
+install(TARGETS
+  aurora_publisher_node
+  noise_estimator_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
