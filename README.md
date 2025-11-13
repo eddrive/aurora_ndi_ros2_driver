@@ -156,14 +156,14 @@ The `docker-compose.yml` defines:
 
 The Aurora driver configuration is built into the container from the `ros2-package` branch. The default configuration file is located at:
 
-**Location in container:** `/workspace/src/aurora_ndi_ros2_driver/config/aurora_config.yaml`
+**Location in container:** `/workspace/src/aurora_ndi_ros2_driver/config/aurora_tracking_config.yaml`
 
 To modify the configuration, you have two options:
 
 **Option 1: Edit inside the container**
 ```bash
 docker exec -it aurora_ndi_tracker bash
-nano /workspace/src/aurora_ndi_ros2_driver/config/aurora_config.yaml
+nano /workspace/src/aurora_ndi_ros2_driver/config/aurora_tracking_config.yaml
 # Restart the node for changes to take effect
 ```
 
@@ -433,7 +433,7 @@ volumes:
 Then edit the config inside the container and reference your ROM files:
 ```bash
 docker exec -it aurora_ndi_tracker bash
-nano /workspace/src/aurora_ndi_ros2_driver/config/aurora_config.yaml
+nano /workspace/src/aurora_ndi_ros2_driver/config/aurora_tracking_config.yaml
 # Update tool_rom_files to point to /workspace/custom_rom/your_sensor.rom
 ```
 
@@ -504,7 +504,7 @@ devices:
 Or edit the config inside the container:
 ```bash
 docker exec -it aurora_ndi_tracker bash
-nano /workspace/src/aurora_ndi_ros2_driver/config/aurora_config.yaml
+nano /workspace/src/aurora_ndi_ros2_driver/config/aurora_tracking_config.yaml
 # Change serial_port to "/dev/ttyUSB1"
 ```
 

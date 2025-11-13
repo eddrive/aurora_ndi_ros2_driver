@@ -37,16 +37,8 @@ RUN mkdir -p $COLCON_WS/src
 
 WORKDIR $COLCON_WS
 
-# Build argument for cache busting (use --build-arg CACHEBUST=$(date +%s) to force re-clone)
-ARG CACHEBUST=1
-
-# Clone Aurora NDI ROS2 driver from GitHub
-RUN echo "Cache bust: $CACHEBUST" && \
-    rm -rf /workspace/src/aurora_ndi_ros2_driver && \
-    git clone -b ros2-package https://github.com/eddrive/aurora_ndi_ros2_driver.git /workspace/src/aurora_ndi_ros2_driver && \
-    cd /workspace/src/aurora_ndi_ros2_driver && \
-    echo "=== Cloned commit ===" && \
-    git log -1 --oneline
+# Copy Aurora NDI ROS2 driver from local directory
+COPY aurora_ndi_ros2_driver /workspace/src/aurora_ndi_ros2_driver
 
 # Install ROS2 dependencies
 RUN rosdep update && \
