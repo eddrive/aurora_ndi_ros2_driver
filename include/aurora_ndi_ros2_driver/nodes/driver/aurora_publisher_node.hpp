@@ -5,6 +5,7 @@
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <aurora_ndi_ros2_driver/msg/aurora_data.hpp>
+#include <aurora_ndi_ros2_driver/filters/aurora_data_filter.hpp>
 
 #include <memory>
 #include <string>
@@ -13,7 +14,6 @@
 #include <mutex>
 #include <chrono>
 #include <optional>
-#include <deque>
 
 namespace AuroraDriver {
     class ndi_aurora;
@@ -57,16 +57,10 @@ private:
         double orientation_scale_factor;
         double error_scale_factor;
 
-        bool enable_outlier_detection;
-        double max_position_jump_mm;
-        double max_orientation_change_deg;
-        double max_acceptable_error_mm;
-
         double command_timeout_sec;
         int max_connection_retries;
         double retry_delay_sec;
 
-        bool debug_mode;
         bool log_raw_data;
     };
 
@@ -94,10 +88,6 @@ private:
         const std::vector<int>& visible_tools,
         const rclcpp::Time& measurement_timestamp);
 
-    AuroraData apply_filtering(const AuroraData& new_data, int sensor_index);
-
-    bool is_measurement_valid(const AuroraData& new_data, int sensor_index);
-
     void read_thread_function();
 
     void tf_publish_callback();
@@ -120,9 +110,7 @@ private:
     std::mutex data_mutex_;
 
     std::vector<AuroraData> latest_data_;
-    std::vector<bool> has_valid_data_;
-    std::vector<std::deque<AuroraData>> data_buffers_;
-    std::vector<AuroraData> last_valid_data_;
+    std::vector<std::unique_ptr<AuroraDataFilter>> data_filters_;
 };
 
 } // namespace aurora_ndi_ros2_driver

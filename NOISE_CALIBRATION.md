@@ -26,7 +26,7 @@ By measuring this noise with the sensor stationary, we can:
 4. **Stable environment** - No vibrations, air currents, or movement
 
 ### Software Requirements
-- Aurora driver properly configured (`aurora_config.yaml`)
+- Aurora driver properly configured (`aurora_tracking_config.yaml`)
 - Sensor publishing data at nominal rate (40 Hz)
 - ROS 2 workspace built successfully
 
@@ -36,7 +36,7 @@ By measuring this noise with the sensor stationary, we can:
 
 ```bash
 # Test that the Aurora driver works
-ros2 launch aurora_ndi_ros2_driver aurora_pub.launch.py
+ros2 launch aurora_ndi_ros2_driver aurora_tracking.launch.py
 
 # Verify data is being published (in another terminal)
 ros2 topic hz /aurora_data_sensor0

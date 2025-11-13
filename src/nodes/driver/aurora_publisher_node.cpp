@@ -1,10 +1,7 @@
-#include "aurora_ndi_ros2_driver/aurora_publisher_node.hpp"
-#include "aurora_ndi_ros2_driver/aurora_utils.hpp"
-#include "aurora_ndi_ros2_driver/ndi_aurora_ros2.hpp" 
+#include "aurora_ndi_ros2_driver/nodes/driver/aurora_publisher_node.hpp"
+#include "aurora_ndi_ros2_driver/utils/aurora_utils.hpp"
+#include "aurora_ndi_ros2_driver/core/ndi_aurora_ros2.hpp"
 
-#include <iostream>
-#include <iomanip>
-#include <sstream>
 #include <algorithm>
 #include <cmath>
 
@@ -23,10 +20,17 @@ AuroraPublisherNode::AuroraPublisherNode() : Node("aurora_publisher_node")
 
     tracking_active_ = false;
 
-    has_valid_data_.resize(params_.num_sensors, false);
     latest_data_.resize(params_.num_sensors);
-    data_buffers_.resize(params_.num_sensors);
-    last_valid_data_.resize(params_.num_sensors);
+
+    // Initialize data filters for each sensor
+    data_filters_.resize(params_.num_sensors);
+    for (int i = 0; i < params_.num_sensors; ++i) {
+        AuroraDataFilter::FilterParameters filter_params;
+        filter_params.enable_filtering = params_.enable_data_filtering;
+        filter_params.window_size = params_.filter_window_size;
+
+        data_filters_[i] = std::make_unique<AuroraDataFilter>(filter_params);
+    }
 
     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
 
@@ -95,16 +99,10 @@ void AuroraPublisherNode::declare_parameters()
     this->declare_parameter("orientation_scale_factor", 1.0);
     this->declare_parameter("error_scale_factor", 1.0);
 
-    this->declare_parameter("enable_outlier_detection", true);
-    this->declare_parameter("max_position_jump_mm", 20.0);
-    this->declare_parameter("max_orientation_change_deg", 30.0);
-    this->declare_parameter("max_acceptable_error_mm", 3.0);
-
     this->declare_parameter("command_timeout_sec", 2.0);
     this->declare_parameter("max_connection_retries", 3);
     this->declare_parameter("retry_delay_sec", 2.0);
 
-    this->declare_parameter("debug_mode", false);
     this->declare_parameter("log_raw_data", false);
 }
 
@@ -152,16 +150,10 @@ void AuroraPublisherNode::load_parameters()
     params_.orientation_scale_factor = this->get_parameter("orientation_scale_factor").as_double();
     params_.error_scale_factor = this->get_parameter("error_scale_factor").as_double();
 
-    params_.enable_outlier_detection = this->get_parameter("enable_outlier_detection").as_bool();
-    params_.max_position_jump_mm = this->get_parameter("max_position_jump_mm").as_double();
-    params_.max_orientation_change_deg = this->get_parameter("max_orientation_change_deg").as_double();
-    params_.max_acceptable_error_mm = this->get_parameter("max_acceptable_error_mm").as_double();
-
     params_.command_timeout_sec = this->get_parameter("command_timeout_sec").as_double();
     params_.max_connection_retries = this->get_parameter("max_connection_retries").as_int();
     params_.retry_delay_sec = this->get_parameter("retry_delay_sec").as_double();
 
-    params_.debug_mode = this->get_parameter("debug_mode").as_bool();
     params_.log_raw_data = this->get_parameter("log_raw_data").as_bool();
 }
 
@@ -366,117 +358,6 @@ std::vector<std::optional<AuroraPublisherNode::AuroraData>> AuroraPublisherNode:
     return results;
 }
 
-AuroraPublisherNode::AuroraData AuroraPublisherNode::apply_filtering(
-    const AuroraData& new_data, int sensor_index)
-{
-    if (!params_.enable_data_filtering || sensor_index >= static_cast<int>(data_buffers_.size())) {
-        return new_data;
-    }
-
-    data_buffers_[sensor_index].push_back(new_data);
-
-    if (static_cast<int>(data_buffers_[sensor_index].size()) > params_.filter_window_size) {
-        data_buffers_[sensor_index].erase(data_buffers_[sensor_index].begin());
-    }
-
-    if (data_buffers_[sensor_index].size() < 2) {
-        return new_data;
-    }
-
-    AuroraData filtered_data = new_data;
-
-    for (int i = 0; i < 3; ++i) {
-        std::vector<double> position_values;
-        for (const auto& data : data_buffers_[sensor_index]) {
-            if (data.visible) {
-                position_values.push_back(data.position[i]);
-            }
-        }
-
-        if (!position_values.empty()) {
-            filtered_data.position[i] = utils::calculate_moving_average(position_values);
-        }
-    }
-
-    for (int i = 0; i < 4; ++i) {
-        std::vector<double> orientation_values;
-        for (const auto& data : data_buffers_[sensor_index]) {
-            if (data.visible) {
-                orientation_values.push_back(data.orientation[i]);
-            }
-        }
-
-        if (!orientation_values.empty()) {
-            filtered_data.orientation[i] = utils::calculate_moving_average(orientation_values);
-        }
-    }
-
-    utils::normalize_quaternion(filtered_data.orientation.data());
-
-    return filtered_data;
-}
-
-bool AuroraPublisherNode::is_measurement_valid(const AuroraData& new_data, int sensor_index)
-{
-    if (!params_.enable_outlier_detection) {
-        return true;
-    }
-
-    if (!new_data.visible) {
-        return false;
-    }
-
-    if (new_data.error > params_.max_acceptable_error_mm) {
-        if (params_.debug_mode) {
-            RCLCPP_WARN(this->get_logger(),
-                       "Sensor %d: Rejected due to high error: %.2f mm > %.2f mm threshold",
-                       sensor_index, new_data.error, params_.max_acceptable_error_mm);
-        }
-        return false;
-    }
-
-    if (!has_valid_data_[sensor_index]) {
-        return true;
-    }
-
-    const AuroraData& last_valid = last_valid_data_[sensor_index];
-
-    double dx = new_data.position[0] - last_valid.position[0];
-    double dy = new_data.position[1] - last_valid.position[1];
-    double dz = new_data.position[2] - last_valid.position[2];
-    double position_jump = std::sqrt(dx*dx + dy*dy + dz*dz);
-
-    if (position_jump > params_.max_position_jump_mm) {
-        if (params_.debug_mode) {
-            RCLCPP_WARN(this->get_logger(),
-                       "Sensor %d: Rejected due to large position jump: %.2f mm > %.2f mm threshold",
-                       sensor_index, position_jump, params_.max_position_jump_mm);
-        }
-        return false;
-    }
-
-    double dot = new_data.orientation[0] * last_valid.orientation[0] +
-                 new_data.orientation[1] * last_valid.orientation[1] +
-                 new_data.orientation[2] * last_valid.orientation[2] +
-                 new_data.orientation[3] * last_valid.orientation[3];
-
-    dot = std::abs(dot);
-    dot = std::min(1.0, std::max(-1.0, dot));
-
-    double angle_rad = 2.0 * std::acos(dot);
-    double angle_deg = angle_rad * 180.0 / M_PI;
-
-    if (angle_deg > params_.max_orientation_change_deg) {
-        if (params_.debug_mode) {
-            RCLCPP_WARN(this->get_logger(),
-                       "Sensor %d: Rejected due to large orientation change: %.2f° > %.2f° threshold",
-                       sensor_index, angle_deg, params_.max_orientation_change_deg);
-        }
-        return false;
-    }
-
-    return true;
-}
 
 void AuroraPublisherNode::read_thread_function()
 {
@@ -508,24 +389,29 @@ void AuroraPublisherNode::read_thread_function()
                     if (parsed_data_multi[sensor_idx]) {
                         AuroraData current_data = *parsed_data_multi[sensor_idx];
 
-                        if (!is_measurement_valid(current_data, sensor_idx)) {
-                            if (params_.debug_mode) {
-                                RCLCPP_DEBUG(this->get_logger(),
-                                           "Sensor %d: Measurement rejected by outlier detection", sensor_idx);
-                            }
-                            continue;
-                        }
+                        // Convert to FilteredData format for the filter
+                        AuroraDataFilter::FilteredData filter_input;
+                        filter_input.position = current_data.position;
+                        filter_input.orientation = current_data.orientation;
+                        filter_input.error = current_data.error;
+                        filter_input.visible = current_data.visible;
 
-                        AuroraData filtered_data = apply_filtering(current_data, sensor_idx);
+                        // Apply filtering
+                        AuroraDataFilter::FilteredData filter_output = data_filters_[sensor_idx]->applyFilter(filter_input);
+
+                        // Convert back to AuroraData format
+                        AuroraData filtered_data = current_data;
+                        filtered_data.position = filter_output.position;
+                        filtered_data.orientation = filter_output.orientation;
+                        filtered_data.error = filter_output.error;
+                        filtered_data.visible = filter_output.visible;
 
                         {
                             std::lock_guard<std::mutex> lock(data_mutex_);
                             latest_data_[sensor_idx] = filtered_data;
-                            has_valid_data_[sensor_idx] = filtered_data.visible;
-                            last_valid_data_[sensor_idx] = filtered_data;
                         }
 
-                        if (params_.debug_mode && filtered_data.visible) {
+                        if (filtered_data.visible) {
                             RCLCPP_DEBUG(this->get_logger(),
                                 "Sensor %d (handle %s): pos[%.2f, %.2f, %.2f] quat[%.4f, %.4f, %.4f, %.4f] err=%.2f",
                                 sensor_idx, filtered_data.handle.c_str(),
@@ -556,10 +442,8 @@ void AuroraPublisherNode::tf_publish_callback()
     std::lock_guard<std::mutex> lock(data_mutex_);
 
     for (int sensor_idx = 0; sensor_idx < params_.num_sensors; ++sensor_idx) {
-        if (!has_valid_data_[sensor_idx]) continue;
-
         const AuroraData& current_data = latest_data_[sensor_idx];
-        if (!current_data.visible) continue;
+        if (!current_data.visible || current_data.handle.empty()) continue;
 
         geometry_msgs::msg::TransformStamped tf_msg;
 
@@ -578,10 +462,8 @@ void AuroraPublisherNode::tf_publish_callback()
 
         tf_broadcaster_->sendTransform(tf_msg);
 
-        if (params_.debug_mode) {
-            RCLCPP_DEBUG(this->get_logger(), "Published TF for sensor %d: %s -> %s",
-                        sensor_idx, params_.frame_id.c_str(), params_.child_frame_names[sensor_idx].c_str());
-        }
+        RCLCPP_DEBUG(this->get_logger(), "Published TF for sensor %d: %s -> %s",
+                    sensor_idx, params_.frame_id.c_str(), params_.child_frame_names[sensor_idx].c_str());
     }
 }
 
@@ -623,10 +505,8 @@ void AuroraPublisherNode::aurora_data_publish_callback()
 
         aurora_data_publishers_[sensor_idx]->publish(aurora_msg);
 
-        if (params_.debug_mode) {
-            RCLCPP_DEBUG(this->get_logger(), "Published aurora data for sensor %d (handle %s, visible: %s)",
-                        sensor_idx, current_data.handle.c_str(), current_data.visible ? "true" : "false");
-        }
+        RCLCPP_DEBUG(this->get_logger(), "Published aurora data for sensor %d (handle %s, visible: %s)",
+                    sensor_idx, current_data.handle.c_str(), current_data.visible ? "true" : "false");
     }
 }
 

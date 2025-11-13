@@ -38,7 +38,7 @@ aurora_publisher_node:
     
     # Topic names for ALL sensors (must have num_sensors entries)
     topic_names:
-      - "/aurora_data_sensor0"  # Sensor 0A (regular)
+      - "aurora/sensor0"  # Sensor 0A (regular)
     
     # Child frame names for TF for ALL sensors (must have num_sensors entries)
     child_frame_names:
@@ -73,30 +73,18 @@ aurora_publisher_node:
     error_scale_factor: 1.0
 
     # =========================================================================
-    # Outlier Detection (for noise rejection without temporal delay)
+    # External Filters Configuration
     # =========================================================================
-    # Enable outlier detection to reject physically implausible measurements
-    # This does NOT introduce delay - just validates each sample independently
-    # DISABLED for hand-eye calibration to ensure timestamp updates continuously
-    enable_outlier_detection: false
+    # Enable/disable Kalman filter node
+    # When enabled, publishes filtered data to topic: <input_topic>/kalman_filter
+    # Configure filter parameters in kalman_filter_config.yaml
+    enable_kalman_filter: true
 
-    # Maximum allowed position jump between consecutive samples (mm)
-    # For medical instruments (catheter, endoscope) moving at ~500mm/s @ 40Hz:
-    # max_jump = max_speed / sample_rate = 500mm/s / 40Hz = 12.5mm
-    # Conservative value: 20mm allows for fast movements + some margin
-    max_position_jump_mm: 20.0
+    # Enable/disable low-pass filter node
+    # When enabled, publishes filtered data to topic: <input_topic>/lowpass_filter
+    # Configure filter parameters in lowpass_filter_config.yaml
+    enable_lowpass_filter: true
 
-    # Maximum allowed orientation change between consecutive samples (degrees)
-    # For medical instruments with fast rotation @ 40Hz:
-    # max_rotation_speed ~1000°/s → 1000°/s / 40Hz = 25°/sample
-    # Conservative value: 30° allows for fast rotations + margin
-    max_orientation_change_deg: 30.0
-
-    # Maximum acceptable RMS error from Aurora (mm)
-    # Aurora typical error: 0.5-1.5mm in good conditions
-    # Reject samples with error > this threshold (likely bad tracking)
-    max_acceptable_error_mm: 3.0
-    
     # =========================================================================
     # Connection and Timeouts
     # =========================================================================
@@ -128,23 +116,29 @@ aurora_publisher_node:
 
 # Example 3: Two regular sensors (no pens)
 # num_sensors: 2
-# tool_rom_files: 
+# tool_rom_files:
 #   - "/aurora_ndi_ros2_driver/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"
 #   - "/aurora_ndi_ros2_driver/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"
 # port_handles: ["0A", "0B"]
 # port_handles_autoconfig: [""]  # Empty - no autoconfigured sensors
+# topic_names: ["aurora/sensor0", "aurora/sensor1"]
+# child_frame_names: ["endo_aurora_sensor0", "endo_aurora_sensor1"]
 
 # Example 4: Mixed (1 regular sensor + 1 pen)
 # num_sensors: 2
-# tool_rom_files: 
+# tool_rom_files:
 #   - "/aurora_ndi_ros2_driver/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # Only for 0A
 # port_handles: ["0A", "0B"]
 # port_handles_autoconfig: ["0B"]  # Only 0B is autoconfigured
+# topic_names: ["aurora/sensor0", "aurora/sensor1"]
+# child_frame_names: ["endo_aurora_sensor0", "endo_aurora_sensor1"]
 
 # Example 5: Multiple regular + multiple pens
 # num_sensors: 4
-# tool_rom_files: 
+# tool_rom_files:
 #   - "/aurora_ndi_ros2_driver/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # For 0A
 #   - "/aurora_ndi_ros2_driver/rom/610029_AuroraMini6DOF_1.8x9mm/610029-6DOF.rom"  # For 0B
 # port_handles: ["0A", "0B", "0C", "0D"]
 # port_handles_autoconfig: ["0C", "0D"]  # Ports 0C and 0D are pens
+# topic_names: ["aurora/sensor0", "aurora/sensor1", "aurora/sensor2", "aurora/sensor3"]
+# child_frame_names: ["endo_aurora_sensor0", "endo_aurora_sensor1", "endo_aurora_sensor2", "endo_aurora_sensor3"]

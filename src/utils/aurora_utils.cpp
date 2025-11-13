@@ -1,6 +1,5 @@
-#include "aurora_ndi_ros2_driver/aurora_utils.hpp"
+#include "aurora_ndi_ros2_driver/utils/aurora_utils.hpp"
 
-#include <stdexcept>
 #include <algorithm>
 #include <cmath>
 #include <cctype>
@@ -50,44 +49,13 @@ double calculate_moving_average(const std::vector<double>& data_buffer)
     if (data_buffer.empty()) {
         return 0.0;
     }
-    
+
     double sum = 0.0;
     for (double value : data_buffer) {
         sum += value;
     }
-    
+
     return sum / data_buffer.size();
-}
-
-bool validate_baud_rate(int baud_rate)
-{
-    // Aurora supported baud rates
-    const std::vector<int> supported_rates = {
-        9600, 19200, 38400, 57600, 115200, 230400
-    };
-    
-    return std::find(supported_rates.begin(), supported_rates.end(), baud_rate) 
-           != supported_rates.end();
-}
-
-bool validate_rom_path(const std::string& rom_path)
-{
-    if (rom_path.empty()) {
-        return false;
-    }
-    
-    // Convert to lowercase for case-insensitive comparison
-    std::string lower_path = rom_path;
-    std::transform(lower_path.begin(), lower_path.end(), lower_path.begin(), 
-                   [](unsigned char c){ return std::tolower(c); });
-    
-    // Check if string ends with ".rom"
-    const std::string suffix = ".rom";
-    if (lower_path.length() >= suffix.length()) {
-        return lower_path.compare(lower_path.length() - suffix.length(), 
-                                 suffix.length(), suffix) == 0;
-    }
-    return false;
 }
 
 } // namespace utils

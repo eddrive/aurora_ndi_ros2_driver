@@ -1,4 +1,4 @@
-#include "aurora_ndi_ros2_driver/noise_estimator_node.hpp"
+#include "aurora_ndi_ros2_driver/nodes/analysis/noise_estimator_node.hpp"
 
 #include <fstream>
 #include <iomanip>

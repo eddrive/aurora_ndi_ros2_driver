@@ -3,7 +3,7 @@ noise_estimator_node:
     # =========================================================================
     # Sensor Configuration
     # =========================================================================
-    # Must match the sensors configured in aurora_config.yaml
+    # Must match the sensors configured in aurora_tracking_config.yaml
     num_sensors: 1
     topic_names:
       - "/aurora_data_sensor0"

@@ -32,7 +32,7 @@ def generate_launch_description():
         'noise_config',
         default_value=PathJoinSubstitution([
             FindPackageShare('aurora_ndi_ros2_driver'),
-            'config',
+            'config', 'analysis',
             'noise_estimator_config.yaml'
         ]),
         description='Path to noise estimator configuration YAML file'
@@ -142,7 +142,7 @@ def generate_launch_description():
 #
 # 6. Custom configs:
 #    ros2 launch aurora_ndi_ros2_driver aurora_noise_calibration.launch.py \
-#        aurora_config:=/path/to/aurora_config.yaml \
+#        aurora_config:=/path/to/aurora_tracking_config.yaml \
 #        noise_config:=/path/to/noise_config.yaml
 #
 # =============================================================================
