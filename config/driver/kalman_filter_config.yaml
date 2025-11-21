@@ -40,18 +40,18 @@ kalman_filter_node:
     # between consecutive measurements due to endoscope movement
 
     # Position process noise variance (mm^2)
-    # For slow endoscopic movement (~10 mm/s @ 40Hz sample rate):
-    # Expected change per sample: 10mm/s / 40Hz = 0.25 mm
-    # Conservative variance: (0.1 mm)^2 = 0.01 mm^2
+    # For VERY slow movement (~1 mm/s @ 40Hz sample rate):
+    # Expected change per sample: 1mm/s / 40Hz = 0.025 mm
+    # Very conservative variance: (0.03 mm)^2 = 0.0009 mm^2
     # TUNE THIS if endoscope moves faster or needs more/less smoothing
-    process_noise_position: 0.01
+    process_noise_position: 0.0009
 
     # Orientation process noise variance (quaternion components)
-    # For slow rotational movement (~10 deg/s @ 40Hz):
-    # Expected quaternion change per sample is very small
-    # Conservative variance: ~1e-6
+    # For VERY slow rotational movement (~1 deg/s @ 40Hz):
+    # Expected quaternion change per sample is extremely small
+    # Very conservative variance: ~1e-7
     # TUNE THIS if rotation is faster or needs more/less smoothing
-    process_noise_orientation: 1.0e-6
+    process_noise_orientation: 1.0e-7
 
     # =========================================================================
     # Data Quality Filtering
