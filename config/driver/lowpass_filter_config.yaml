@@ -30,7 +30,7 @@ lowpass_filter_node:
     #   - 2-5 Hz: Strong smoothing, good for very slow movement
     #   - 5-10 Hz: Moderate smoothing, good for typical endoscopic movement
     #   - 10-15 Hz: Light smoothing, preserves faster movements
-    cutoff_frequency_hz: 0.25
+    cutoff_frequency_hz: 5.0
 
     # Sample rate (Hz)
     # This should match your Aurora publisher rate (typically 40 Hz)
