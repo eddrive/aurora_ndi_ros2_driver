@@ -57,7 +57,7 @@ export ROS_LOCALHOST_ONLY=0
 EOF
 
 echo "Starting Aurora NDI tracking system..."
-ros2 launch aurora_ndi_ros2_driver aurora_pub.launch.py &
+ros2 launch aurora_ndi_ros2_driver aurora_tracking.launch.py &
 
 # Wait for Aurora initialization
 echo "Waiting for Aurora initialization..."
